@@ -1,0 +1,477 @@
+---
+title: "Lab 4: Does Prenatal Care Improve Infant Health?"
+author: "w203: Statistics for Data Science"
+submitters: "Adam Reilly, Chris Beecroft, Surya Nimmagadda"
+date: "December 4, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+load("bwght_w203.RData")
+
+library(car)
+library(lmtest)
+library(sandwich)
+library(stargazer)
+library(effsize)
+library(zoo)
+```
+
+#1. Introduction
+One of the best measures of a nation's health is its infant health. Because the future of a country depends on the well-being of its children, the health of those children is a major concern.
+
+The high death rate among newborns in this country is related strongly to the number of infants whose weight at birth is lower than normal for their gestational age or who were born prematurely. Low birthweight is the result of inadequate fetal growth, and the lower the birthweight, the greater the immaturity and risk of death. A number of factors contribute to low birthweight: childbearing very late or very early in the reproductive years, poor nutrition, medical problems, and substance abuse. 
+
+By providing necessary medical care and helping pregnant women improve their general health, prenatal care programs play an important role in alleviating risk factors and improving pregnancy outcomes, particularly if the care is adequate and obtained early. Studies found that early and comprehensive prenatal care can improve the chances of overcoming low birthweight and infant mortality. Women who do not receive adequate maternity care, on the other hand, double the risk of having a low birthweight baby.
+
+Adam, Chris and Surya are the team hired by a health advocacy group to study this data from the National Center for Health Statistics and from birth certificates. They need to help understand whether prenatal care improves health outcomes for newborn infants. 
+\pagebreak
+
+#2. Exploratory Analysis
+The data is provided in the file bwght\_w203.RData.
+```{r}
+library(car)
+load("bwght_w203.RData")
+desc
+```
+
+```{r}
+#Remove NAs in core variables
+data = subset(data, data$monpre != 'NA' & data$npvis != 'NA')
+
+hist(data$bwght, breaks = 50)
+
+#Indicator variables to be used later
+male_only = subset(data, data$male == 1)
+female_only = subset(data, data$male == 0)
+
+#Does gender matter for birthweight
+t.test(male_only$bwght, female_only$bwght, paired = F, var.equal = TRUE)
+cohen.d(male_only$bwght, female_only$bwght)
+#hypothesis, these are the same
+
+black_mom = subset(data, data$mblck == 1)
+other_mom = subset(data, data$mblck == 0)
+t.test(black_mom$bwght, other_mom$bwght, paired = F, var.equal = TRUE)
+cohen.d(black_mom$bwght, other_mom$bwght)
+```
+The file includes a birthweight variable. Additonally, the one- and five-minute APGAR scores are included.  These are measures of the well being of infants just after birth.
+ 
+Let us take a quick summary of the data
+```{r}
+summary(data)
+```
+Examining the birth weight variable:
+```{r}
+summary(data$bwght)
+hist(data$bwght, breaks = 50, xlim = c(0, 6000))
+```
+Based on https://medlineplus.gov/birthweight.html, a healthy birth weight is in the range of 5.5 to 8.8 pounds, which translates as 2500 to 4000 grams.
+
+Looking at the histogram we see birth weights distributed from 368 grams to 5204 grams, with most of them around 2000 to 5000.
+In general, the lower the birthweight, the greater the risk for complications. Having a lower birthweight less than 2500 will be considered as unhealthy in this analysis. 
+
+There could be some risk with birthweight being on the higher side (>4000). But since we do not have enough data to determine if it was natural based on parents or if the mother had diabetes during pregnancy. So we will consider higher birthweight to be fine for this analysis.
+
+Low birthweight can be diagnosed during pregnancy and can be addressed with prenatal care. The number of prenatal visits could be higher for such cases. 
+
+Taking a look at npvis variable, that indicates the number of prenatal visits:
+```{r}
+summary(data$npvis)
+hist(data$npvis, breaks = c(0:41- 0.5))
+```
+Based on https://www.womenshealth.gov/publications/our-publications/fact-sheet/prenatal-care.html, most experts suggest that the number of prenatal visits should be:
+
+- About once each month for weeks 4 through 28
+
+- Twice a month for weeks 28 through 36
+
+- Weekly for weeks 36 to birth
+
+- If the mother is older than 35 or if pregnancy is high risk, she should see her doctor more often.
+
+This indicates the total number of prenatal visits for a normal case should be about 10 - 12. The median value observed in the sample is close to this(12). 
+
+There are few outliers such as 
+
+- 68 NAs
+
+- very few in the range 0 to 2
+
+- very few in the range 21 to 40
+
+These samples dont show any abnormal birthweight.
+```{r}
+tmp <- subset(data, is.na(data$npvis))
+summary(tmp$bwght)
+tmp <- subset(data, data$npvis == 0)
+summary(tmp$bwght)
+tmp <- subset(data, data$npvis > 20 & data$npvis <= 40)
+summary(tmp$bwght)
+```
+Based on the background information, we will consider npvis as our primarity independent variable. 
+We will remove the records indicating npvis as na.  
+```{r}
+bdata <- subset(data, !is.na(data$npvis))
+```
+Exploring further on the prenatal care, it is also important to consider when the prenatal care started. This is given by the variable monpre.  
+```{r}
+summary(bdata$monpre)
+hist(bdata$monpre, breaks = c(0:10- 0.5), xlim = c(0, 10))
+```
+Some of the values for monpre are zero which sounds like an error in reporting. 
+It would be curious to see the number of visits (npvis) when monpre is reported as 0.
+```{r}
+subset(bdata, monpre == 0)$npvis
+```
+If monpre and npvis are both zero, then the mother had no prenatal medical visits. The 0 in monpre would be mathematically misleading if put into regression since it would read as getting care as early as possible instead of as never getting it. The closest replacement we could use in these cases is to have monpre equal to 9 (this is not perfect, but the difference in baby weight between mothers who no neonatal care and mothers who get neonatal care at literally the last second is likely very negligible. We do have to make an assumption that the babies were born at the 9 month point. Truth be told, this variable would be more effective if it was the number of months of pre-natal care received in total). So we will alter the data set to have 9s instead of 0 for monpre.
+```{r}
+bdata$monpre[bdata$monpre %in% 0] <- 9
+```
+We see that the month prenatal care began has a median of two.
+
+Additionally, https://en.wikipedia.org/wiki/Prenatal_development#Factors_influencing_growth_rate indicates that the following factors can influence prenatal development:
+
+- Mothers age
+
+- Alcohol
+
+- Smoking
+
+(few other factors were listed but not mentioned here because the given data set doesnt specify them)
+```{r}
+summary(bdata$mage)
+summary(bdata$cigs)
+summary(bdata$drink)
+par(mfrow=c(1,3))
+hist(bdata$mage, breaks = 100)
+hist(bdata$cigs, breaks = 100)
+hist(bdata$drink, breaks = 100)
+```
+Mothers age seems to be very well distributed with a median age of 29. 
+
+Number of cigarettes and drinks seem to be mostly zeros, so it would be curious to see their impact or the lack of it during modeling.
+
+## Transformation of variables
+We think mage and npvis will have a strong impact on the birthweight, which may not be captured correctly by just using the variable as is. 
+For example:
+- Too many prenatal visits could actually indicate a concern regarding the health of the baby.
+
+- Based on the studies reported at (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4199306/), mothers age below 20 or above 35 could result in low birth weight risk.
+
+These diminishing patterns can be established better if we added the squares of npvis and mage to our model.
+```{r}
+summary(bdata$magesq)
+summary(bdata$npvissq)
+par(mfrow=c(1,4))
+hist(bdata$mage, breaks = 100)
+hist(bdata$magesq, breaks = 100)
+hist(bdata$npvis, breaks = 20)
+hist(bdata$npvissq, breaks = 200)
+```
+Another transformation to consider is the log of birthweight indicated in lbwght variable. 
+```{r}
+par(mfrow=c(1,2))
+hist(bdata$bwght)
+hist(bdata$lbwght)
+```
+We chose to not include this transformation to our dependent variable because:
+
+1. The distributions of birthweight is looking close to normal, so log transformation wouldnt add any thing else as seen the plots above (apart from some skew)
+
+2. The outputs of log transformation didnt look intuitive for a variable like birthweight. The birthweight is more understandable as is.
+
+3. It is easier to understand the coefficients from modeling with birthweight
+## Excluded variables
+We explored further to see if fathers age or education has any effect on the infants health. There seems to be some effect as indicated in http://www.ajsc.us/files/ajsc0030217.pdf. However, there was no evidence of fathers age/education impacting our response variable - birthweight. Further the Princeton article http://futureofchildren.org/publications/journals/article/index.xml?journalid=38&articleid=118&sectionid=776 doesnt indicate any relation from father to birthweight.
+
+To summarize, we think the following variables would be good parameters to perform our first linear regression model.
+
+**Explained variable**: bwght
+
+**Explanatory variables**: npvis, npvissq, monpre, mage, magesq 
+
+
+#3. MODELS
+For our core model, the statistics that we want to include are monpre, npvis, and mage. All of these variables have a theoretical reason to be correlated with birthweight and have a good reason of data. There are two more variables, cigs and drink, that have a theoretical reason to be correlated with birthweight, but have such little variation as we would like to introduce them later.
+```{r}
+model1_restricted = lm(bdata$bwght ~ bdata$monpre + bdata$npvis + bdata$mage)
+```
+Now, we want to see if there might be some missing exponential variables. As such, we will run a RESET test that measures whether exponential variables might add to the equation.
+
+```{r}
+resettest(model1_restricted, power = 2, type = "regressor", data = data)
+```
+Based on the incredibly low p-value in the RESET test (which is a type of F-test), there is a strong basis to believe that adding exponential variables to model 1 would create an improvement in fit. As we noted in our EDA, there are both theoretical reasons that the squares of mother's age and number of visits should be included. This will give us our complete model 1.
+
+```{r}
+model1 = lm(bdata$bwght ~ bdata$monpre + bdata$npvis + bdata$mage + bdata$npvissq + bdata$magesq)
+```
+
+For the second model, we want to include all variables that we believe might have some impact on birthweight. So in addition to the variables in model1x, we also include cigs, drink, father's age and father's age squared.
+```{r}
+model2 = lm(bdata$bwght ~ bdata$monpre + bdata$npvis + bdata$npvissq + bdata$mage + bdata$magesq + bdata$cigs + bdata$male + bdata$mblck)
+model2x = lm(bdata$bwght ~ bdata$monpre + bdata$npvis +bdata$npvissq + bdata$mage + bdata$magesq + bdata$cigs + bdata$drink)
+```
+
+Our third model (the problematic model) keeps the statistically relevant aspects of our second model, but introduces both indicator and interaction variables. The problem is that one of our indicators, lbw, is basically another method of describing the dependent variable. As such, it's high correlation will likely make the other variables seem less relevant and in terms of looking at causality, it will completely destory the model. Please note that we created a variable of male * lbw only to make the stargazer printouts later on more understandable.
+```{r}
+#No drink as it doesn't pass SLR 3 (Sufficient variance in x variable)
+#Our model introducing something problematic using indicator variables on gender and low birthweight. The problem is that low birthweight is in fact another way
+#to describe the explanatory variable, so it's meaning would be muddled and confusing
+bdata$malelbw = (bdata$male * bdata$lbw)
+model3 = lm(bdata$bwght ~ bdata$monpre + bdata$npvis + bdata$npvissq + bdata$mage + bdata$magesq + bdata$cigs + bdata$male + bdata$lbw + bdata$malelbw)
+```
+
+For our 4th model, we wanted to take a look at education levels. Education levels is effectively a stand in for income; higher income should be correlated with higher birthweights.
+
+```{r}
+model4 = lm(bdata$bwght ~ bdata$monpre + bdata$npvis + bdata$npvissq + bdata$mage + bdata$magesq + bdata$cigs + c(bdata$meduc < 12) + c(bdata$meduc == 12) + c(bdata$meduc > 12 & bdata$meduc < 16) + c(bdata$feduc < 12) + c(bdata$feduc == 12) + c(bdata$feduc > 12 & bdata$feduc < 16) + bdata$male)
+
+#coeftest(model1, vcov = vcovHC)
+#coeftest(model2, vcov = vcovHC)
+#coeftest(model3, vcov = vcovHC)
+#coeftest(model4, vcov = vcovHC)
+
+#summary(model1)
+
+#aggregate(bdata$bwght, list(Omaps = bdata$omaps), mean)
+```
+
+# 4. Assessent of the Classical Linear Model (CLM) Assumptions
+<!-- For your first model, a detailed assessment of the 6 CLM assumptions.  For additional models, you should check all assumptions, but only highlight major differences from your first model in your report. -->
+The model here predicts birth weight (bwght) from month prenatal care started (monpre) and number of prenatal-care visits (npvis).
+As mentioned above, there are five cases where both monpre and npvis are both zero.
+For these we are assuming that care was not performed.
+We have set monpre to 9 for these five cases with the assumption that the five cases have gone full-term.
+
+## CLM.1 - Linearity in Parameters
+We find that with this model we have linearity in parameters.
+Although we don't have linearity in variables, this is acceptable.
+Here we see the $beta$ coefficients:
+```{r}
+coef(model1)
+```
+Reviewing the explanatory variables along with the residuals we see that most of the variables are linear.
+Following are the crPlots (component-residual) from the car package which show us the line of best fit (green) and the component line (red) from the regression
+(plots suggested by https://www.r-bloggers.com/r-regression-diagnostics-part-1/).
+In all the lines models fit well with the possible exception of the npvis and npvissq variables.
+For these the two variables with npvis of 40 seem to have an influence on the right tale of the line.  Given the small number of data points in the 30 to 40 visits, we don't believe there is much concern for these.
+```{r}
+car::crPlots(model1)
+```
+
+## CLM.2 - Random Sampling
+We do not know the nature of the original sample nor how it was collected.
+Above we've noted that the birth weight and age appear to be normally distributed
+and the mean of the npvis variable matches the literature for the expected number of visits, it seems likely that we have a random sample, although we cannot definitively state this.
+
+## CLM.3 - No Perfect Collinearity
+For this model, we have no perfect co-linearity with our three predictor variables: monpre, npvis (and its square), and mage (and its square).
+Correlation between these variables are low.
+There is a high correlation between npvis and npvissq as well as mage and magesq, but this is expected.
+Variance Inflation Factor (vif) is low for monpre.
+For the other two variables it is high, but this is expected due to relationship between each variable and its square.
+```{r}
+# Correlation between monpre, npvis (and npvissq), mage (and magesq)
+cor(bdata[,c("monpre","npvis","npvissq","mage","magesq")], use="complete.obs")
+# Variance Inflaction Factor
+vif(model1)
+```
+A review of our restricted model1 (monpre, npvis, mage) shows that the interaction between the three main predictor variables are low.
+```{r}
+vif(model1_restricted)
+```
+
+## CLM.4 - Zero Conditional Mean
+In plot #1 (Residuals vs Fitted), we do not have a flat mean line across the graph (slightly above zero on the left half and a negative slope on the right side).
+From this we determine that we do not have a zero conditional mean, we will resort to the lesser condition of CLM.4'
+```{r fig.height=3.5}
+# Plot 1 - Residuals vs Fitted
+plot(model1,which=1)
+```
+
+### CLM.4' - Zero Conditional Mean and Zero Correlation
+We are claiming an assumption of exogeneity and we are looking for the best fit line.  <!-- The following sentence, the following R section, and the parenthetical can probably be removed if we run over 30 pages -->  The expectation of the residuals is zero** as expected and the covariance between the residuals and each of the model's variables is also zero.
+```{r}
+# E(u) = 0
+mean(model1$residuals)
+# Cov(u,xj) for j = 1, 2, ..., k (parameters)
+cor(bdata$monpre,model1$residuals)
+cor(bdata$npvis,model1$residuals)
+cor(bdata$npvissq,model1$residuals)
+cor(bdata$mage,model1$residuals)
+cor(bdata$magesq,model1$residuals)
+```
+(** These values are near enough to zero to assume the non-zero value is due to rounding errors.)
+
+## CLM.5 - Homoskedasticity
+From plot 1 above (Residuals vs Fitted) we notice that the size of the residual bands across the X-axis is not even.
+Some of this could be to sparse data on the right side of the graph.
+From plot 2 (Scale-Location), the fitted line is not flat here which further tells us we do not have homoskedasticity.
+```{r fig.height=3.5}
+# Plot 2 - Scale-Location
+plot(model1,which=3)
+```
+As a final test, we will run the Breusch-Pagan test:
+```{r}
+bptest(model1)
+```
+For this test, $H_0$ is that the model is homoskedastic.  Since the p-value < 0.05 we reject $H_0$.
+Since our model is heteroskedastic we will use a heteroskadastic covarience matrix for the coeficients.
+Following are our revised standard errors, t- and p-values for our model using a heteroskedastic robust standard errors.
+```{r}
+coeftest(model1, vcov = vcovHC)
+```
+
+## CLM.6 - Normality of Errors
+From the q-q plot we have normality except at the low end.
+The following histogram shows a normal distribution of the residuals with a small left tail.
+```{r fig.height=3.5}
+# Plot 3 - Normal Q-Q
+plot(model1,which=2)
+# Historgram of the residuals
+hist(model1$residuals)
+```
+For the Shapiro-Wilk normality test, the null hypothesis is that thed data is normally distributed.
+The high signifiance tells us to reject $H_0$ and that our residuals are not normally distributed.
+Of course Shapiro-Wilk tends to produce significant results for large sample sizes,
+so we are going to rely asymptotics of OLS and our large data set size to ignore the potential issue here with the normality of errors.
+```{r}
+shapiro.test(model1$residuals)
+```
+The three points called out on the Q-Q graph as outliers on the left side are all data points with very low birth weight (note that these are the same data points called out on Residuals vs Fitted and Scale-Location charts):
+```{r}
+bdata[c(568,416,1182),c("bwght","monpre","npvis","npvissq","mage","magesq")]
+```
+Finally looking at the residuals vs leverage, we don't have any points that are at Cook's line and we have a few points that have high influence and some leverage.
+```{r fig.height=3.5}
+# Plot 4 - Residuals vs Leverage
+plot(model1,which=5)
+```
+These points called out in the graph all have reasonable numbers except for the number of prenatal care visits, which are quite high.
+```{r}
+bdata[c(1659,149,859),c("bwght","monpre","npvis","npvissq","mage","magesq")]
+```
+## Summary
+Reviewing the model above (with the squared values) and the restricted model (with only monpre, npvis, and mage) we find that the Wald test tells us that we have a high degree of statistical significance with our polynomial terms (npvissq and magesq).
+```{r}
+# wald test
+waldtest(model1, model1_restricted, vcov = vcovHC)
+```
+```{r results='asis'}
+(se.model1 = sqrt(diag(vcovHC(model1))))
+(se.model1_restricted = sqrt(diag(vcovHC(model1_restricted))))
+stargazer(model1, model1_restricted,
+          omit.stat = "f",
+          type='latex', 
+          se = list(se.model1, se.model1_restricted),
+          star.cutoffs = c(0.05, 0.01, 0.001))
+```
+```{r}
+# get our robust errors
+# Model 2
+(se.model2 = sqrt(diag(vcovHC(model2))))
+# Model 3
+(se.model3 = sqrt(diag(vcovHC(model3))))
+# Model 4
+(se.model4 = sqrt(diag(vcovHC(model4))))
+```
+
+```{r}
+se.model1 = sqrt(diag(vcovHC(model1)))
+se.model2 = sqrt(diag(vcovHC(model2)))
+se.model3 = sqrt(diag(vcovHC(model3)))
+se.model4 = sqrt(diag(vcovHC(model4)))
+stargazer(model1, model2, model3, model4, type = 'text', omit.stat = "f", se = list(se.model1, se.model2, se.model3, se.model4), star.cutoffs = c(0.05, 0.01, 0.001), table.placement = '!h')
+
+
+```
+```{r results='asis'}
+stargazer(model1, model2, model3, model4, type = "latex", omit.stat = "f", se = list(se.model1, se.model2, se.model3, se.model4), star.cutoffs = c(0.05, 0.01, 0.001), table.placement = '!h', no.space=TRUE)
+```
+##Model 1 Significance
+In our base model 1 with squared variables included, all the variables are statistically significant. In terms of practical significance, we are setting up our standards based on a cohen's d standard of birthweight (which is to say, we looked at cohen's d on birthweight for several populations and found that the difference of 120 grams between population was the approximate low point for "small significance"" cohen's d. 300 grams was the approximate point where the significance became "moderate" and 550 grams was the approximate point where the significance became "large.")
+
+In the first model, npvis may have slight practical significance. A strong majority of the data lies in the range of 1-4 (approximately 95%). The predicted difference between 1 and 4 (holding all other variables equal) is around 140, which is slightly over our border for small significance. Factoring in the full range of data (up to 9 months) would make the variable more practically significant, but the lack of data points in the higher range does not support that. 
+
+Regarding, npvis, the majority of the data fall into the range of 5-16. This shows moderate practical significance when npvis and npvissq and considered together (the expected difference between 5 and 16 is 350; it is worth noting that as the number of visits decreases below 5, the expected difference in effect becomes large. The expected difference between 0 and 16 is almost 600, which is very practically significant. It should be noted that npvis was a tail on the right that goes up to 40, which has a worse expected result than 5 visits. However, there are very few data points here, so this could be noise).
+
+Regarding mage, there is a moderate practical significance. The majority of the data falls in the range of 20-40. While the expected difference between 20 and 40 not practically significant (which makes sense as both young mage and high mage are supported by research as having a negative effect on birthweight), the difference between these variables and 30 is around 130 (for 40) to 200 (for 20). This does show low practical significance as a whole.
+
+##Model 2 Significance
+In model 2, we added the effects of male and cigs; everything is statistically significant in this model except npvissq (however, keep in mind that t value is 1.87, which is likely not far from statistical significance and that this variable needs to be considered in conjunction with npvis. As such, on a comprehension overview, this is still likely stastically significant). 
+
+The variables in model 2 that were in model 1 all keep approxiamtely the same level of practical significance. The coefficient of monpre barely altered; while the effect on the other variable coefficients was more significant, it was not enough to make a difference since the base variables and the negative coefficient squared variables balance each other to a degree (please note that practical significance is a little weaker than in model 1). New variables cigarettes and male are statistically significant while mblck is not.
+
+Cigs has a low practical significance. While the majority of the mothers did not smoke (or did not admit to smoking), there was a wide range of cigarettes smoked among mother's who did. The mean cigarettes smoked among smoking mother's was 12, which equates to an expectant difference of a little over -120 grams in birthweight when compared to a non-smoker. However, a good portion of the population smoked 20 cigarettes (a pack) every day, where the difference between not smoking and 20 cigarettes is a little over 200 grams.There are mother's who smoked even more, although the data at that point may be too sparse to tell what is effect is noise.
+
+Male has a coefficient of 85, equating to an expected effect of 85 grams holding all other variables constant. This does not meet the threshold set for practical significance (for all that gender is a causal effect, albeit one with potential confounding effect at times. This will be further discussed when we discuss causality).
+
+##Model 3 Significance
+In model 3, we added the effects of both baby gender and low birthweight factored against gender. Several variables that were previously statistically significant in previous models are no longer. Only male, lbw, cigarettes and mage and magesq are statistically significant (malelbw may not be far off given the t-value of 1.82). This change is not surprising. Lbw is a problematic variable that basically describes the regressand in another manner, and likely serves to mask a lot of variation in the data.  Along the same lines, many variable coefficients are dramatically different than models 1 and 2.
+
+Of the statistically significance variables in this model, both mage and monpre lost practical significance. Mage is still close (the difference in expect between 20 and 30 is hovering right around 120, so it could potentially be considered slightly practically significant). Cigarettes maintained slight practical significance. Male once again was not practically significant.
+
+Lbw is- to no surprise- extremely practically significant since it's effectively measuring the dependent variable in another manner.
+
+##Model 4 Significance
+In model 4, we added the effects of education (for both mothers and fathers; the base case for both mother and father were people who had 16 years or more of education). Every statistically significant variable that appeared in model 2 was once again statistically significant. All were practically significant except male. Of the educational factors, the only one that was stastitiscally significant was the mother's with less than 12 years of schooling, which frankly is very surprising. It also has a low practical significance. 
+
+We would expect that income would to some degree correlate with birth weight as a family with more income would be able to access better pre-natal care and nutrients and that more education would increase the number of high income opportunities. Looking at literature (http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.515.9775&rep=rep1&type=pdf), it appears that while some studies corroborate this to a degree, other studies call into question those findings. Regardless, we found no study that would have supported a mother not graudating high school as having an effect that increases the weight of the baby on average, so this is surprising. However, we suspect that this might potentially a function of education levels increasing as age increases and the coefficient is partially a result of age. We would like to check this by subsetting by mother's education levels.
+
+```{r, include = F}
+meduclow= subset(bdata, bdata$meduc < 12)
+meduchs= subset(bdata, bdata$meduc == 12)
+meduccoll= subset(bdata, bdata$meduc > 12 & bdata$meduc < 16)
+meducgrad = subset(bdata, bdata$meduc >= 16)
+```
+```{r}
+mean(meduclow$mage)
+mean(meduchs$mage)
+mean(meduccoll$mage)
+mean(meducgrad$mage)
+```
+Given the difference in mean ages and that many of the oldest mothers also had the most education, there could a confounding factor to some degree. Regardless, based on our metric, this still has slight practical significance.
+
+#6. A discussion of whether your results can be interpretted causally. In particular, include a discussion of
+what variables are not included in your analysis and the likely direction of omitted variable bias. Also
+include a discussion of which included variables may bias your results by absorbing some of the causal
+effect of prenatal care.
+
+While there are several variables in our models that do likely have a causal effect on birthweight, the issue of omitted variables is extremely relevant as one of the potentially causal effects on birth rate is the time period of gestation (which of course is effected by a variety of other variables that are not in our model as well; gestation time does work to summarize many of these other missing variables which can include genetic and environmental factors that cause variation in gestation time). A baby born pre-maturely will weigh less than the same baby carried to full term. Since the data set includes the exact month that a woman first got prenatal care, this data should be obtainable.
+
+Please note that looking at the 5 minute apgar score distribution in comparison to table 2 here (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3726736/) could imply that the babies were for the most part carried to full term since the distribution of our data is not far off from these averages, but we can not really say for certain since we don't have a method to measure this variable in our data set. In a randomly selected data set, this would be a valid omitted variable though.
+
+Longer gestation times would be correlated with higher birthweight (So the beta for this coefficient would be positive). It's covariance with the other variables in our models might not be so clear cut.
+
+Month of First Visit- While covariance might be muted, we would expect a positive covariance- if any- due to the fact that earlier prenatal visits might be able to determine problems earlier, which could lead to better gestational outcomes.
+
+Number of Visits- This would logically have a positive covariance with gestation (the longer the baby is carried, the more chances for prenatal visits), which would make the bias positive.
+
+Mother's Age- Like it's connection to birthweight, after a certain point mother's age may have a negative effect on gestational time
+(http://humrep.oxfordjournals.org/content/15/11/2433.long). On the whole, we would expect an overall negative correlation between mother's age and gestational time, which would lead to a negative omitted variable bias.
+
+Male- We might have a slight negative covariance with gestation. While male babies do have an average higher birthweight, there are increased risks associated with carrying male babies and male babies have higher rates of infant mortality. Knowing this, it is logical to expect that this might lead to a higher rate of pre-mature births in male babies. The likely direction of omitted variable bias is 
+negative.
+
+Cigarettes- We expect this to have negative covariance with gestational period, so the bias would be negative.
+
+In addition, there are a variety of other potential causes that are not factored in: birth order (earlier birth order correlates with lower birthweight), birth spacing (babies born closely after a similar correlates with lower birthweight), mother's height, mother's weight at beginning of the pregnancy, the amount of weight mother gained over course of pregnancy, and even mother and father's birthweights. All these variables in aggregate would cause an extreme amount of omitted variable bias. Given the horde of missing variables, we would not consider any of these models to be causal.
+
+Additionally, we attempted to mimic the effects of prenatal care by looking at monpre, npvis and to a lesser amount, education factors.
+The fact that monpre had a very unexpected coefficient and was one the few measures we had to approximate the effect of neonatal care is indicative that were are our variables are not able to capture this crucial effect. If we were trying to analyze this in a specifically causal model, we would consider dropping monpre due to not accurately capturing the true variable that we were trying to measure. Given that we are not accurately capturing the effect of neonatal care, there is a lot of omitted variable bias in any of our models. Since there will certainly be covariance with a good number of our variables- perhaps all- and with several of the other omitted variables, we could not craft an unbiased linear model formula let alone a causal one.
+
+#7. A brief conclusion with a few high-level takeaways.
+
+After having examined this data set and having modeled various effects on 
+Additionally, there are several variable
+
+Finally, even if these models could meet all requirements to meet causal conditions, they would still poor since their low adjusted r's squares maxes out .025 (which the expection of model 3 with lbw, which increased the r sqaure)
+
+pOINTS
+--MIGHT NOT BE RANDOM- SERIOUS ISSUES AND WHY
+--CAN'T CAPTURE EFFECT OF PRE-NATAL CARE, THE CORE EXPLANATORY VARIABLE
+--ERGO, IN REGARDS TO MAKING ANY DECISIONS BASED ON THIS DATA IS VERY QUESTIONABLE

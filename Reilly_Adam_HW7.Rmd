@@ -1,0 +1,75 @@
+---
+title: "Reilly_Adam_HW7"
+author: "Adam Reilly"
+date: "October 15, 2016"
+output: pdf_document
+---
+
+
+
+##1.Suppose that Americans consume an average of 2 pounds of ground beef per month.  
+###(a) Do you expect the distribution of this measure (ground beef consumption per capita per month) to be
+###approximately normal? Why or why not?  
+
+I would not expect the distribution of beef consumption among Americans to be approximately normal because there are a large number of people who do not eat any meat. Since consumption of zero is the left most point and there would be a spike at this point, this would be very different than a normal distribution.
+
+###(b) Suppose you want to take a sample of 100 people. Do you expect the distribution of the sample mean
+###to be approximately normal? Why or why not?
+
+If we took a sample of 100, I would expect the distribution of the sample mean to be approximately normal. This is because the Central Limit Theorem tells us that when a large number of points are drawn in a sample, the sample means trend towards a normal distribution. Typically, if sample sizes are greater than 30, we can assume the means fit a normal distribution (so a sample of 100 should).
+
+###(c) You take a random sample of 100 Berkeley students to find out if their monthly ground beef consumption
+###is any different than the nation at large. The mean among your sample is 2.45 pounds and the sample
+###standard deviation is 2 pounds. What is the 95% confidence interval for Berkeley students?  
+
+If the standard deviation within the sample is 2 pounds, the standard deviation needed to construct the confidence internal is sample standard deviation/square root of n or 2/10 or 0.2. Using the 95% confidence interval gives us
+(2.45-1.96(0.2), 2.45+1.96(0.2) = (2.058, 2.842)
+
+2. The naivety in the assumption revolves around the 1.96. This is equivalent to 2 standards deviations based on Z-values. However, since we are using the sample standard deviation, we are working with t-values, not z-values.
+
+The actual confidence level for this test when n=10 is:
+```{r}
+pt(1.96, 9)-pt(-1.96, 9)
+```
+
+The actual confidence level for this test when n= 200 is
+```{r}
+pt(1.96, 199)-pt(-1.96, 199)
+```
+
+3a. $$L(\lambda; x_1...x_n) = \lambda^n * exp(-\lambda * \sum_{j=1}^n x_j)$$
+
+3b. The log likelihood function is as follows:
+$$l(\lambda; x_1...x_n) = ln(\lambda^n * exp(-\lambda * \sum_{j=1}^n x_j))$$
+$$=ln(\lambda^n)+ln(exp(-\lambda * \sum_{j=1}^n x_j))$$
+$$=n*ln(\lambda)-(\lambda * \sum_{j=1}^n x_j))$$
+
+3c.Setting the derivative of log likelihood equal to 0
+$$0=deriv(ln(L(\lambda)))$$
+$$0= deriv(n*ln(\lambda)-(\lambda * \sum_{j=1}^n x_j))$$
+$$0= n/\lambda-\sum_{j=1}^n x_j$$
+The summation is equivalent to the sample mean * n
+$$n/\lambda = n*sample_mean$$
+The sample mean is theoretically the mean time between arrivals. The sample mean is equal to 1 divided by lambda, which we can see thanks to the derivative.  
+
+3d.
+```{r}
+times = c(2.65871285, 8.34273228, 5.09845548, 7.15064545, 0.39974647, 0.77206050, 5.43415199, 0.36422211, 3.30789126, 0.07621921, 2.13375997, 0.06577856, 1.73557740, 0.16524304, 0.27652044)
+likelihood = function(theta, times) {
+  sum(dexp(times,rate=theta,log=T))
+}
+
+#loglik.plot(times, dist = c("exp"))       #Couldn't get this to work
+
+results = optimize(f=likelihood, times, interval=c(0,10), maximum = TRUE)
+results
+```
+I got 0.3949 for the maximum. When I compared to what I would have gotten in part c:
+    
+$$n/\lambda = n*sample_mean$$
+$$15/\lambda = 15*2.532114$$
+$$15/\lambda = 37.98171$$
+$$\lambda = 0.395$$
+    
+These answers are very similar.
+                                                                                                

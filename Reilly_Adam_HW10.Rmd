@@ -1,0 +1,112 @@
+---
+title: "Reilly_Adam_HW10"
+author: "Adam Reilly"
+date: "November 2, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+library(effsize)
+library(plotly)
+```
+
+1. Recall that the slope coefficient in a simple regression of $Y_i$ on $X_i$ can be expressed as,
+
+$$ \beta_1 = \frac{\hat{cov}(X_i, Y_i)}{\hat{var}(X_i)}$$
+
+Suppose that you were to add a random variable, $M_i$, representing measurement error, to each $X_i$.  You may assume that $M_i$ is uncorrelated with both $X_i$ and $Y_i$.  You then run a regression of $Y_i$ on $X_i + M_i$ instead of on $X_i$.  Does the measurement error increase or decrease your slope coefficient?
+
+since $M_i$ is uncorrelated (aka independent) with $X_i$ and $Y_i$, the covariance between $M_i$ are these variables is 0.
+
+By adding in $M_i$, our formula now becomes
+$$ \beta_1 = \frac{\hat{cov}(X_i+M_i, Y_i)}{\hat{var}(X_i + M_i)}$$
+=$$\frac{\hat{cov}(X_i, Y_i) + {cov}(M_i, Y_i)}{\hat{var}(X_i + M_i)}$$
+=$$\frac{\hat{cov}(X_i, Y_i) + 0}{Var(X_i)+Var(M_i)+2Cov(X_i, M_i)}$$
+=$$\frac{\hat{cov}(X_i, Y_i)}{Var(X_i)+Var(M_i)+0}$$
+
+Since variance is always a positive number, the denominator adding in $M_i$ is bigger than the denominater without $M_i$. The if the covariance of $X_i$ and $Y_i$ is negative, the slope coefficient will increase. If the covariance is positive, the slope coefficient will decrease.The key is that the slope coefficient will move closer towards 0 regardless.
+
+
+-----
+
+The file bwght.RData contains data from the 1988 National Health Interview Survey.  It was used by J Mullahy for a 1997 paper (Instrumental-Variable Estimation of Count Data Models:  Applications to Models of Cigarette Smoking Behavior, Review of Economics and Statistics 79, 596-593.) and provide by Wooldridge.  You will use this data to examine the relationship between cigarette smoking and a child's birthweight.
+
+```{r}
+load("bwght.RData")
+```
+
+1. Examine the dependent variable, infant birth weight in ounces (bwght) and the independent variable, the number of cigarettes smoked by the mother each day during pregnacy (cigs).
+
+```{r, fig.height = 3.75}
+summary(data$bwght)
+summary(data$cigs)
+hist(data$bwght, breaks = 10)
+qqnorm(data$bwght, main = "Normal Distribution Check of Birth Weight")
+hist(data$cigs, breaks = 20)
+qqnorm(data$cigs, main = "Normal Distribution Check of Cigarettes")
+```
+
+2. Fit a linear model that predicts bwght as a function of cigs.  Superimpose your regression line on a scatterplot of your variables.
+```{r}
+plot(jitter(data$bwght) ~ jitter(data$cigs), main = "Cigarettes vs Birthweight", xlab = "Cigarette Count", ylab = "Birth Weight")
+model = lm(bwght ~ cigs, data = data)
+model
+abline(model)
+```
+
+3. Examine the coefficients of your fitted model.  Explain, in particular, how to interpret the slope coefficient on cigs.  Is it practically significant?
+```{r}
+model
+summary(model)$r.square
+```
+   The natural intercept when x is 0 is 119.77 oz. For each cigarette smoked per day, the expected weight drops by 0.5138 ounces (which is the meaning of the slope coefficient). There is very little practical significance to this number. The r squared value is incredibly low (0.02), meaning that only 2% of the variation in birth weight can be explained by cigarette smoking.
+
+4. Write down the two moment conditions for this regression.  Use R to verify that they hold for your fitted model.
+
+The two moment conditions are that the expectation of the error variable is 0 and that the covariance between x and the error variable is also 0.
+```{r}
+mean(model$residuals)
+cov(data$cigs, model$residuals)
+```
+
+As can be seen, both the mean of the error and the covariance between x and the error are very small (approaching 0).
+
+5. Does this simple regression capture a causal relationship between smoking and birthweight?  Explain why or why not.
+
+Taken at face value, this information does not capture any real causal relationship between smoking and birthweight. As noted in question 3, very little variation in birth weight can be explained by cigarette smoking. The data might imply that there could be a very, very slight causal relationship, but it's so weak that it's not practically significant. The reality is that there are so many additional factors that you into birthweight that we are just completely ignoring. For example, the lowest birthweights are found when there are 0 cigarettes smoked, which is counterintuitive to the model and to expectation. It seems likely that these data points have unconsidered factors that would cause the low birth weight (for example, premature delivery). This could serve to obscure the actual relationship between cigarettes smoked and birth weight.
+
+6. Does your scatterplot show evidence of measurement error in cigs?  If so, what does this say about the true relationship between cigarettes and birthweight?
+
+The scatterplot does show evidence of measurement error in cigs. The fact that the cigarette count is so clustered (especially for values greater than 10) implies that this likely was an estimated value and not a legitimate measurement (and not only was it estimated, but it was an estimated count summing up behavior over an approximate 9 month period. The long period makes it unlikely that all estimations are particularly accurate). Since this also may have been self-reported behavior, mothers may have underestimated the cigarette count because it sounded better.
+
+This means that we can not draw any conclusions about cigarettes and birthweight (even conclusions just based on these data points) since our indepedent variable contains a potentially larger number of errors.The data is just too imprecise and has too many potential flaws. Any conclusions could be legitimate, but also could just be measurement error.
+
+7. Using your coefficients, what is the predicted birthweight when cigs is 0?  When cigs is 20?
+
+Predicated birthweight when cigs is 0 is 119.7719, which is just the intercept of the model. Predicated birthweight when cigs is 20 is 119.7719-0.5138(20) = 109.4965.
+
+8. Use R's predict function to verify your previous answers.  You may insert your linear model object into the command below.
+
+```{r}
+predict(model, data.frame(cigs = c(0, 20) ) )
+```
+
+9. To predict a birthweight of 100 ounces, what would cigs have to be?
+100 = 119.77-0.5138(x)
+-19.77 = -0.5138(x)
+```{r}
+x = 19.77/0.5138
+x
+
+```
+To predict an exact birthweight of 100 ounces, the number of cigs would need to be 38.47801 precisely. For confirmation,
+
+```{r}
+predict(model, data.frame(cigs = 38.47801) )
+```
+
+
+

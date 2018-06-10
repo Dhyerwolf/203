@@ -1,0 +1,171 @@
+---
+title: "Reilly_Adam_HW12"
+author: "Adam Reilly"
+date: "November 25, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+library(car)
+library(lattice)
+library(stargazer)
+library(lmtest)
+library(sandwich)
+videos <- read.csv("C:/Users/PC/Desktop/Statistics for DS/videos.txt", sep='\t')
+```
+
+The file videos.txt contains data scraped from Youtube.com.
+
+1. Fit a linear model predicting the number of views (views), from the length of a video (length) and its average user rating (rate).
+
+```{r, fig.height = 3.75, echo = F}
+#Removing data points with no raters since that theoretically will distort the model
+video = subset(videos, videos$rating > 1)
+summary(video$views)
+sd(video$views)
+hist(video$views, breaks = 100)
+```
+
+Running a quick check on normality of views excluding the few videos with very high view counts to see if the skew is still exists.
+```{r, fig.height=3.75}
+histogram(~views | views < 90000, data = video, breaks = 50, xlim = c(0, 90000))
+```
+```{r, fig.height=3.75, echo = F}
+hist(log(video$views))
+hist(videos$length, breaks = 5000)
+summary(video$length)
+hist(videos$rate)
+summary(video$rate)
+scatterplotMatrix(videos[,c("views", "length", "rate")], diagonal = "histogram")
+model = lm(log(video$views) ~ video$length + video$rate)
+model
+```
+
+Given the extreme skew in the y variable as well as the nature of how video views could theoretically work (a video with a lot of views is primed to get even more views as it's going to share more, trend on websites...etc), I have decided to use the log of the views. This means that our coefficients of our x variables will be measured in the percent change.
+
+2. Using diagnostic plots, background knowledge, and statistical tests, assess all 6 assumptions of the CLM.  When an assumption is violated, state what response you will take.
+
+#Assumption 1: Y is a linear function of the x's (dependent variables)
+By fitting the data to the linear model in question 1, this assumption has already been achieved.
+
+#Assumption 1 can be considered true for our purposes.
+
+#Assumption 2: Sampling is random and the data points are iid
+Without knowing more about how this data was gathered, we can not make any true determinations on this assumption.However, we can look at the raw data and see if there is any indication in the variables that the sampling was not random. In the age category, there are a bunch of videos with an age of 0, and then the next smallest age is 274. This definitely implies that the points are not truly random; assuming the 0's are errors, then the smallest number of 274 is may be very large if the videos were randomly picked (without more information, it's hard to tell what the variable is. If it's days since posted, it's a large number. If it's hours since posted, it means that all the videos are relatively recent). Limiting the time period does make sense if we are only looking at other variables in our regression model since view count is going to be a function of time; it's reasonable to think that the large majority of views a video gets will occur in a short time after the video is posted.
+
+Of course, it is not this clear cut. Time itself could be a problematic stand-in variable. Given that more people use the internet now than several years ago, views could trend to be higher now just because the potential audience is greater. Without knowing the scope of time, it's hard to really make a good determination on this variable. There are further odd trends in the age variable.
+
+```{r, echo = F}
+hist(video$age, breaks = 100)
+```
+
+This doesn't look random at all. There seems to a limit on how far back they look at videos (perhaps because the number of people who watched videos that were older than the ones in the sample is just too fundementally different), but there's a massive spike right at oldest threshold that would imply that the data was not randomly sampled.
+
+Another variable that shows a lack of random sampling is uploader. If this was truly a random sampling of videos on youtube, it would be very rare to see any duplicate uploaders. However, there are a good number of uploaders that have between 5-20 videos, which wouldn't happen in a random sampling. This certainly looks like clustering.
+
+#I believe that we can essentially say that assumption 2 does not hold true.
+
+Unfortunately, there is nothing we can do to fix this issue in terms of sampling. The best we can do is limit any inference gained from regression analysis to this particular data set and not generalize onto the full dataset of youtube videos. We could use clustered standard errors (which I will attempt to do).
+
+#Assumpiton 3: No x variables have perfect multicollinearity
+```{r, pressure}
+vif(model)
+cor(video$length, video$rate, use = "complete.obs")
+plot(jitter(video$length), jitter(video$rate))
+```
+
+Given the low correlation between the two dependent variables and the fact the vif values are low, for this analysis this assumption holds up. Note that for either model the vif and correlation are the same since the only transformed variable was on the y axis.
+
+#This assumption is valid for this dataset.
+
+#Assumption 4: Errors have a conditional means of 0 based on the x's or the x variables are exogenous (x's have no correlation with error term)
+```{r, echo = F}
+plot(model, which = 1)
+plot(model, which = 5)
+```
+
+Based on these plots, error condition mean might be valid. In the fitted versus residuals plot, the mean per given x hovers around 0, although there are some notable discrepencies (especially as we get into the right half of the graph although the data points are so sparse there that might just be noise).
+
+Since we are not looking at a causal model and just looking at associative models, we can at least assume exogeneity, which is good enough even if the error conditional mean is not perfectly zero.
+
+Looking at residuals versus leverage, no points have a Cook's Distance that might imply that it would distort the data trend lines too much.
+
+We could also look at the covariance between residuals the the x values. While residuals are not the same thing as errors, per async 12.10, they are an estimate. I wouldn't put too much stock in this, but it's at least a quick test that could show issues if they were there.
+```{r}
+cov(video$length, model$residuals)
+cov(video$rate, model$residuals)
+```
+
+The x variables in both models basically had no covariance with the residuals, which further implies that exogeneity could be valid.
+
+#This assumption (or at least exogeneity if not 0 conditional mean) is valid for this dataset.
+
+#Assumption 5: Variables are homoskedastic (Variance of the error term is a constant)
+Scale Location Plot
+```{r, echo = F}
+plot(model, which = 3)
+bptest(model)
+```
+
+Homoskedasticity looks like it is somewhat present (based on both scale-location and fitted versus residual) since at least on the left side of the graphs, the width of the data doesn't change significantly. However, it does change a little and the right side of the graphs narrow dramatically (although the data points are so few in number that this could just be noise). As such, at least some heteroskedasticity is present. 
+
+#This assumption on some level is not valid for the model.
+
+This assumption may hold true. However, even if it doesn't, we can use heteroskedastic resistant error terms (which some people recommend to use regardless). This would overcome this issue. I will attempt to use these and clustered standard errors and compare them.
+
+#Assumption 6: Normality of Error Terms (Errors are drawn from normal distribution with mean of 0)
+```{r}
+hist(model$residuals)
+plot(model, which = 2)
+```
+
+While we can't test error terms, we can use residuals as an approximation. Taking the histogram of the linear model definitely looks similar to a normal distribution. The qqplot confirms this data looks relatively normal, albeit with some divergence at both ends of the plot. Due to the size of the data set, R can not run a Shapiro-Wilkes Test to confirm.
+
+#This assumption is valid for the model
+
+3. Generate a printout of your model coefficients, complete with standard errors that are valid given your diagnostics.  Comment on both the practical and statistical significance of your coefficients.
+```{r}
+se.model = sqrt(diag(vcovHC(model)))
+```
+
+Creating Clustered Standard Errors
+```{r}
+get_CL_vcov<-function(model, cluster){
+  require(sandwich, quietly = TRUE)
+  require(lmtest, quietly = TRUE)
+  
+#calculate degree of freedom adjustment
+  M <- length(unique(cluster))
+  N <- length(cluster)
+  K <- model$rank
+  dfc <- (M/(M-1))*((N-1)/(N-K))
+  
+  #calculate the uj's
+  uj  <- apply(estfun(model),2, function(x) tapply(x, cluster, sum))
+  
+  #use sandwich to get the var-covar matrix
+  vcovCL <- dfc*sandwich(model, meat=crossprod(uj)/N)
+  return(vcovCL)
+}
+
+#call our new function and save the var-cov matrix output in an object
+m1.vcovCL<-get_CL_vcov(model, video$views)
+
+se.model2 = sqrt(diag(m1.vcovCL))
+```
+
+#Running the Stargazer package to analyze the regression models
+```{r}
+stargazer(model, model, type = "text", omit.stat = "f", se = list(se.model, se.model2), star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+The first column is heteroskedastic-robust standard errors and the second is the clustered standard errors (although I'm not sure 100% if my formulation is correct, so I will only be talking about the first column. The mathematical difference in standard errors is so minute that the analysis is the same either way).
+
+Both the coefficients for rate and length were statistically significant variables with probabilities less than 0.001. The practical significance is not quite so clear. Since we are looking at a log model, approximately one point in rating is about equivalent to a 22% increase in video views, and the difference between a 1 star video and a 5 star video is fairly notable in terms of raw percentage that the model would expect. This does seem to imply some practical significance, but keep in mind that the strong majority of the videos in this dataset had a score of 4.0 or above, meaning that the variable actually had very little variation. The majority of videos here have low to moderate views, and that it seems likely that this implies a niche or small following- which in turn likely biases the rate variable since those who rate will not be remotely random. Also, in light of how high views can go, the difference between 5,000 and 10,000 views isn't very significant (and this is slightly better than the 80-85% increase we might expect from 1 to 5 stars). As such, I would say that this variable doesn't have any true practical significance.
+
+Length is certainly not practically significant. Each extra unit tends to equate to a 0.03% percentage increase in views per the model.99% of the datapoints have a length of 660 or less, which means that from the shortest video to a video with a length of 660, the predicted difference in views is just 20%. This is a remarkably small effect on the whole.
+
+Neither of these variables being statistically significant is not surprising though since the r2 value is so small (meaning that neither variable really explains any of the variation on the model). I don't think any variables in the data set could really explain view count very well since none of them really measure the viral potential of videos which is probably the biggest factor on video views when looking at a macro scale.

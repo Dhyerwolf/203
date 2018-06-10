@@ -1,0 +1,299 @@
+---
+title: "Reilly_Adam_Lab2"
+author: "Adam Reilly"
+date: "October 19, 2016"
+output: pdf_document
+subtitle: 'W203: Statistics for Data Science'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+```
+
+# 1. Meanwhile, at the Unfair Coin Factory...
+
+You are given a bucket that contains 100 coins.  99 of these are fair coins, but one of them is a trick coin that always comes up heads.  You select one coin from this bucket at random.  Let T be the event that you select the trick coin.  This means that $P(T) = 0.01$.
+
+a. To see if the coin you have is the trick coin, you flip it $k$ times.  Let $H_k$ be the event that the coin comes up heads all $k$ times.  If you see this occur, what is the conditional probability that you have the trick coin?  In other words, what is $P(T|H_k)$.
+
+$$P(T|Hk) = P(Hk|T) * P(T))/((P(Hk))$$
+$$=(1) * 0.01/(0.5^k * 0.99 + 1 * 0.01))$$
+$$=0.01/(0.01+(0.99(0.5^k))$$
+
+b. How many heads in a row would you need to observe in order for the conditional probability that you have the trick coin to be higher than 99%?
+
+If P(T|Hk) > 0.99
+$$0.99 < 0.01/(0.01+(0.99(0.5^k))$$
+$$0.99(0.01 + 0.99(0.5 ^ k) < 0.01$$
+$$0.0099 + .9801(0.5 ^ k) - 0.01 < 0$$
+$$.9801(0.5 ^ k) -.0001 < 0$$
+$$9801(0.5^k) - 1 < 0$$
+K = 14 where P(T|Hk) > 0.99 first occurs
+
+# 2. Wise Investments 
+
+You invest in two startup companies focused on data science.  Thanks to your growing expertise in this area, each company will reach unicorn status (valued at $1 billion) with probability 3/4, independent of the other company.  Let random variable $X$ be the total number of companies that reach unicorn status.  X can take on the values 0, 1, and 2.  Note: $X$ is what we call a binomial random variable with parameters $n=2$ and $p=3/4$.
+
+a. Give a complete expression for the probability mass function of $X$.
+$$ f(x) = \begin{cases}
+9/16, &\text {if x} = 2 \\
+3/8, &\text {if x} = 1\\
+1/16, &\text {if x} = 0
+\end{cases} $$
+
+b. Give a complete expression for the cumulative probability function of $X$.
+$$ F(x) = \begin{cases}
+0: & x < 0\\
+1/16: & 0 <= x < 1 \\
+7/16: & 1 <= x < 2 \\
+1: & 2 <= x
+\end{cases} $$
+
+c. Compute $E(X)$.
+\begin{equation}
+E(X) = \sum_x x * f(x)  
+= 1* 3/8 + 2 * 9/16  
+= 3/8 + 18/16  
+= 1.5  
+\end{equation}
+
+d. Compute $var(X)$.
+\begin{equation}
+var(X) = \sum_x (x-\mu)^2 * f(x)
+=(0-1.5)^2 * 1/16 + (1-1.5)^2 * 3/8 + (2-1.5)^2 * 9/16
+\end{equation}
+$$=2.25/16 + 0.75/8 + 2.25/16$$
+$$=6/16$$
+$$=3/8$$
+
+# 3. Relating Min and Max
+
+Continuous random variables $X$ and $Y$ have a joint distribution with probability density function,
+
+$$ f(x,y) = \begin{cases}
+2, &0 < y < x < 1 \\
+0, &otherwise.
+\end{cases} $$
+
+You may wonder where you would find such a distribution.  In fact, if $A_1$ and $A_2$ are independent random variables uniformly distributed on $[0,1]$, and you define $X = max(A_1,A_2)$, $Y = min(A_1,A_2)$, then $X$ and $Y$ will have exactly the joint distribution defined above.
+
+a. Draw a graph of the region for which $X$ and $Y$ have positive probability density.
+
+```{r pressure, echo=FALSE}
+x = seq(0, 1, 0.001)
+y = seq(0, 1, 0.001)
+  
+plot(x, y, xlim = c(-0.1, 1.1), ylim = c(-0.1,1.1))
+cord.x <- c(0) 
+cord.y <- c(0)
+cord.x <- c(cord.x, 1,1)
+cord.y <- c(cord.y, 1,0)
+polygon(cord.x,cord.y,col='skyblue')
+```
+
+The region where the probability is positive lies between the lines of x=y, y=0 and x=1.
+
+b. Derive the marginal probability density function of $X$, $f_X(x)$.
+$f_X(x)$ = $$\int_{Y=-\infty}^\infty (x,y)dy$$
+$$=\int_0^X 2 dy$$
+$$=2y |_0^x$$
+$$=2x$$
+
+c. Derive the unconditional expectation of $X$.
+E(X) = $$\int_{X=-\infty}^\infty xf(x)dx$$
+$$=\int_0^1 2x^2dx$$
+$$=2/3(x^3) |_0^1$$
+$$=2/3(1)-0$$
+=2/3
+
+d. Derive the conditional probability density function of $Y$, conditional on $X$, $f_{Y|X}(y|x)$
+$f_{Y|X}(y|x)$ = $f_{X, Y}(x,y)$/$f_X(x)$
+= 2/2x
+=1/x
+
+e. Derive the conditional expectation of $Y$, conditional on $X$, $E(Y|X)$.
+Given X, Y is evenly distributed between 0 and X (although when the unconditional Y variable is not uniformly distributed). As such, the E(Y|X) = X/2
+
+f. Derive $E(XY)$.  
+$$E(XY) = E(E(XY|X))$$
+$$= E(X*E(Y|X))$$
+$$= E(X^2/2)$$
+$$= 1/2E(X^2)$$
+$$= 1/2\int_{X=-\infty}^\infty x^2f(x)dx$$
+$$= 1/2\int_0^1 2x^3 *dx$$
+$$=(x^4)/4|_0^1$$
+$$=1/4$$
+
+g. Using the previous parts, derive $cov(X,Y)$
+$$cov(X, Y) = E(XY)-(\mu(X)*\mu(Y))$$
+   	=1/4 - (2/3)(1/3)
+		=1/4-2/9
+		=9/36-8/36
+		=1/36
+
+# 4. Circles, Random Samples, and the Central Limit Theorem
+
+Let $X_1, X_2,...,X_n$ and $Y_1,Y_2,...,Y_n$ be independent random samples from a uniform distribution on $[-1,1]$.  Let $D_i$ be a random variable that indicates if $(X_i,Y_i)$ falls within the unit circle centered at the origin.  We can define $D_i$ as follows:
+
+$$ D_i = \begin{cases}
+1, &X_i^2 + Y_i^2 < 1 \\
+0, &otherwise
+\end{cases}
+$$
+
+Each $D_i$ is a Bernoulli variable.  Furthermore, all $D_i$ are independent and identically distributed.
+
+a. Compute the expectation of each indicator variable, $E(D_i)$.  Hint: your answer should involve a Greek letter.
+
+This can be solved by dividing the area of the unit circle divided by the area of the square that the entire circle contained in. We can use this since the all data points are independent and drawn from a uniform distribution
+
+$$Area(square) = 2 * 2 = 4$$
+\begin{equation}
+Area(Circle) = \Pi * r^2 = \Pi * 1 = \Pi
+\end{equation}
+\begin{equation}
+E(D_i) = \Pi/4  
+\end{equation}
+
+b. Compute the standard deviation of each $D_i$.
+\begin{equation}
+\sigma = \sqrt ((0-\Pi/4) ^2 * (1-\Pi/4) + (1-\Pi/4) ^ 2 * (\Pi/4))
+\end{equation}
+$$= \sqrt{0.169}$$
+$$= .41$$
+
+c. Let $\bar{D}$ be the sample average of the $D_i$.  Compute the standard error of $\bar{D}$.  This should be a function of sample size $n$.
+
+The standard error is the square root of (p * q)/n, where q is (1-p)
+
+\begin{equation}
+St.Error = \sqrt{(p * (1-p))/n} = \sqrt{(0.785*0.215)/n} = \sqrt{0.169/n}
+\end{equation}
+
+d. Now let n=100.  Using the Central Limit Theorem, compute the probability that $\bar{D}$ is larger than $3/4$.  Make sure you explain how the Central Limit Theorem helps you get your answer.
+
+The stdev with a sample size of 100 = square root (16.9) = 4.1  
+Mean of sample size = 0.7854 * n = 78.54 
+The probably of the sample mean being greater that 3/4 looks at how many standard devations 75 is from the mean, and takes all probability to the right of that point
+
+\begin{equation}
+Zscore = 75-78.54/\delta  =-3.54/4.1 = -0.86
+\end{equation}
+
+According the the Z table in the book, -0.86 sd has approximately .1949 to its left, or conversely there is a 80.51% approximate chance that the mean of the sample size will be greater than 75.  
+
+The Central Limit Theorem helps get the answer because when we draw a sufficient number of data points in a test, the averages of the samples will form a normal distribution. As such, we can then use metrics of standard deviation to determine probability. Since our sample size of 100 is over 30, it is very likely that the Central Limit Theorem would be applicable in this manner.
+
+e. Now let $n=100$.  Use R to simulate a draw for $X_1, X_2,...,X_n$ and $Y_1,Y_2,...,Y_n$.  Calculate the resulting values for $D_1, D_2,...D_n$.  Create a plot to visualize your draws, with $X$ on one axis and $Y$ on the other.  We suggest using a command like the following to assign a different color to each point, based on whether it falls inside the unit circle or outside it.  Note that we pass $d+1$ instead of $d$ into the color argument because 0 corresponds to the color white.
+
+
+```{r}
+x = seq(-1, 1, 0.001)
+y = seq(-1, 1, 0.001)
+n1 = 100                                       #Setting the number of draws
+
+set.seed(5)
+samp1 = sample(x, n1, replace=T)
+set.seed(9)
+samp2 = sample(y, n1, replace = T)
+plot(samp1,samp2, col=ifelse(samp1 ^ 2 + samp2 ^ 2 > 1, "red", "black"), asp=1, xlab = "x", ylab = "y")
+```
+
+f. What value do you get for the sample average, $\bar{D}$?  How does it compare to your answer for part a?
+```{r, include = FALSE}
+x = seq(-1, 1, 0.001)
+y = seq(-1, 1, 0.001)
+n1 = 100                                       #Setting the number of draws
+
+set.seed(5)
+samp1 = sample(x, n1, replace=T)
+set.seed(9)
+samp2 = sample(y, n1, replace = T)
+
+samp3 = c(samp1 ^ 2 + samp2 ^ 2)
+count = 0
+for (i in samp3){
+  if (i <= 1){
+    count = count + 1
+  }
+}
+
+print(count)
+```
+```{r}
+print(count)
+```
+
+The $\bar{D}$ for my selected set is 77. This is very close to my answer in part a, which was 78.53 (pi/4)
+
+g. Now use R to replicate the previous experiment 10,000 times, generating a sample average of the $D_i$ each time.  Plot a histogram of the sample averages.  
+
+I am calling the variable where I am storing my results D_i_vector.
+
+```{r, include = FALSE}
+loop_counter = 1
+x = seq(-1, 1, 0.001)
+y = seq(-1, 1, 0.001)
+n1 = 100
+D_i_vector <- vector(mode="numeric", length=0)
+while (loop_counter <= 10000){
+  set.seed(72+loop_counter)
+  samp1 = sample(x, n1, replace=T)
+  set.seed(89071+loop_counter)
+  samp2 = sample(y, n1, replace = T)
+  samp3 = c(samp1 ^ 2 + samp2 ^ 2)
+  
+  count = 0
+  for (i in samp3){
+    if (i <= 1){
+      count = count + 1
+    }
+  }
+  D_i_vector <- append(D_i_vector, count)
+  loop_counter <- loop_counter + 1
+}
+
+```
+```{r}
+mean(D_i_vector)
+hist(D_i_vector)
+```
+
+The mean is very close to the expected amount.
+
+h. Compute the standard deviation of your sample averages to see if it's close to the value you expect from part c.
+
+```{r}
+sd(D_i_vector)
+```
+
+This standard deviation is also very close to what I found in part c.
+
+i. Compute the fraction of your sample averages that are larger that $3/4$ to see if it's close to the value you expect from part d.
+
+```{r, include = FALSE}
+count = 0
+for (i in D_i_vector){
+  if (i > 75){
+    count = count + 1
+  }
+}
+```
+```{r}
+print(count/length(D_i_vector))
+```
+
+```{r, include = FALSE}
+count = 0
+for (i in D_i_vector){
+  if (i == 75){
+    count = count + 1
+  }
+}
+
+print(count)
+```
+
+In part d, I determined that approximately 79.5% of points should fall above 75%. The ratio of 76.7% is close, albeit not perfect. I expected this is because the 79.5% is based on the random variable being continuous, but we are actually looking at discrete variables. 6.6% of the data falls at exactly 75%. On a continuous distribution, I would expect that about half this data would be above 75 and half below; if we add half 6.6% to 76.7%, we get 80%, which is much closer to expected.

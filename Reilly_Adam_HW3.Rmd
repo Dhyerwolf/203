@@ -1,0 +1,161 @@
+---
+title: "Adam_Reilly_HW3"
+author: "Adam Reilly"
+date: "September 15, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##1. Gas Station Analytics 
+At a certain gas station, 40% of customers use regular gas (event R), 35% use mid-grade (event M), and 25% use premium (event P). Of the customers that use regular gas, 30% fill their tanks (Event F). Of the customers that use mid-grade gas, 60% fill
+their tanks, while of those that use premium, 50% fill their tanks. Assume that each customer is drawn independently from the entire pool of customers.
+
+Setup
+\newline
+P(R) = 0.4
+\newline
+P(M) = 0.35
+\newline
+P(P) = 0.25
+\newline
+P(R and F) = 0.4 * 0.3 = 0.12
+\newline
+P(M and F) = 0.35 * 0.6 = 0.21
+\newline
+P(P and F) = 0.25 * 0.5 = 0.125
+\newline
+P(F) = 0.12 + 0.21 + 0.125 = .455
+\newline
+
+(a) What is the probability that the next customer will request regular gas and fill the tank?
+\newline
+P(R and F) = 0.12
+\newline
+(b) What is the probability that the next customer will fill the tank?
+\newline
+P(F) = 0.455
+\newline
+(c) Given that the next customer fills the tank, what is the conditional probability that they
+use regular gas?
+\newline
+P(R|F) = P(R and F)/P(F) = 0.12/0.455 = 0.264
+\newline
+
+##2. The Toy Bin
+In a collection of toys, 1/2 are red, 1/2 are waterproof, and 1/3 are cool. 1/4 are red and
+waterproof. 1/6 are red and cool. 1/6 are waterproof and cool. 1/6 are neither red, waterproof,
+nor cool. Each toy has an equal chance of being selected.
+
+Setup
+\newline
+P(Red) = 0.5
+\newline
+P(Waterproof) = 0.5
+\newline
+P(Cool) = 0.333 
+\newline
+P(Red and Waterproof) = 0.25
+\newline
+Since P(Red|Waterproof) = P(Red and Waterproof)/P(Waterproof) = 0.25/0.5 = 0.5 = P(Red)
+\newline
+Red and Waterproof are independent
+\newline
+P(Red and Cool) = 0.167
+\newline
+Since P(Red|Cool) = P(Red and Cool)/P(Cool) = 0.167/0.333 = 0.5 = P(Red)
+\newline
+Red and Cool are independent
+\newline
+P(Waterproof and Cool) = 0.167
+\newline
+Similar to above, this leads to waterproof and cool being independent.
+\newline
+P(!Red or !Waterproof or !Cool) = 0.167
+\newline
+P(Red, Waterproof and Cool) = 0.083
+\newline
+Since all three variables are independent, we know the P(All Three) = 0.083 (Which can be determined various ways (P(Cool) * P(Red and Waterproof), P(Red) * P(Cool and Waterproof)
+
+(a) Draw an area diagram to represent these events.
+
+```{r pressure, echo=FALSE}
+labels = c("Red", "Waterproof", "Cool", "Red and Waterproof", "Red and Cool", "Cool and Waterproof", "Red, Cool and Waterproof", "None")
+amounts = c(2, 2, 1, 2, 1, 1, 1, 2)
+pie(amounts, labels)
+```
+
+(b) What is the probability of getting a red, waterproof, cool toy?
+\newline
+0.083
+
+(c) You pull out a toy at random and you observe only the color, noting that it is red.
+Conditional on just this information, what is the probability that the toy is not cool?
+\newline
+P(!Cool|Red) = (P(Red)-P(Red and Cool))/P(Red) = 
+\newline(0.50-0.167)/0.5 = 
+\newline(0.333/0.5) = 
+\newline 0.667
+
+(d) Given that a randomly selected toy is red or waterproof, what is the probability that it is
+cool?
+P(Cool|Red or Waterproof) = P(Cool and Red or Cool and Waterproof)/P(Red or Waterproof) = 
+\newline
+(P(Cool and Red)+P(Cool and Waterproof)-P(Cool, Red and Waterproof))/(P(Red) + P(Waterproof) - P(Red and Waterproof) =
+\newline
+(0.167+0.167-0.083)/(0.5 + 0.5 - 0.25) =
+\newline
+0.25/0.75=
+\newline
+0.333
+
+##3. On the Overlap of Two Events
+Suppose for events A and B, P(A) = 1/2, P(B) = 2/3, but we have no more information about
+the events.
+\newline
+
+(a) What are the maximum and minimum possible values for P(A intersection B)?
+\newline
+The maximum value for the intersection assumes that all A is in B, or P(A and B) = 
+\newline
+0.5
+\newline
+The minimum value for the intersection assumes that as little of A in possible is in B =  (P(A and B)) = 
+\newline
+0.167
+\newline
+
+(b) What are the maximum and minimum possible values for P(A|B)?
+\newline
+Given that B is true, the maximum value for P(A) would be if as much of A overlapped with B as possible (or all of it)
+\newline
+The minimum is found by having as little as A overlapping B as possible (or P(A and B) = 0.167)
+\newline
+
+max P(A|B) = P(A and B)|P(B) = 0.5/0.6667 = 0.75
+\newline
+min P(A|B) = P(A and B)|P(B) = 0.167/0.667 = 0.25
+
+##4. Can't Please Everyone! 
+Among Berkeley students who have completed w203, 3=4 like statistics. Among Berkeley students who have not completed w203, only 1=4 like statistics. Assume that only 1 out of 100 Berkeley students completes w203. Given that a Berkeley student likes statistics, what is the probability that they have completed w203?
+\newline
+
+Setup
+\newline
+P(like|203) = 0.75
+\newline
+P(like|!203) = 0.25
+\newline
+P(203) = 0.01
+\newline
+P(like) = P(like|203) * P(203) + P(like|!203) * P(!203) = (0.75)(0.01) + (0.25)(0.99) = .0075 + .2475 = .255
+\newline
+
+Answer
+\newline
+P(203|like) = (P(like|203) * p(203))/P(like) = .0075/(.255) = 0.029

@@ -1,0 +1,200 @@
+---
+title: "Reilly_Adam_Lab3"
+author: "Adam Reilly"
+date: "October 28, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+library(car)
+library(effsize)
+```
+
+Every four years, the American National Election Studies runs a time-series survey of potential voters approxiamtely 1-2 to months before and after the Presidential election to get their opinions on various political topics and to see if those opinions over time. In 2012, approximately 6,000 people responded to the survey request (either face to face or online). While this survey did not feature true random selection, for the sake of this analysis we are assuming that it does.
+     
+It is important to note that most of the tests run in this lab depend on the assumption that any data has been obtained via random sampling. Since the assignment assumes that this is true, when talking about the assumptions that each test runs, I will be avoiding talking about this assumption. For all tests, I will assume a p-value of less than 0.05 is sufficient to reject a null hypothesis.
+     
+There are several questions that will be explored; the majority revolve around age, party identification and a liberal/conservative identification on a scale. As such, I will first set up dataframes for ease of access.
+     
+```{r pressure, include = FALSE}
+S = read.csv("ANES_2012_sel.csv")
+Repub = subset(S, as.numeric(S$pid_x) == 6 | as.numeric(S$pid_x) == 7 | as.numeric(S$pid_x) == 8)
+Democ = subset(S, as.numeric(S$pid_x) == 2 | as.numeric(S$pid_x) == 3 | as.numeric(S$pid_x) == 4)
+
+#Below used for question 1
+valid_data = subset(S, as.numeric(S$libcpre_self) > 3 & as.numeric(S$libcpo_self) > 5)
+
+#Below used for question 2
+Repub_age = subset(Repub, Repub$dem_age_r_x > 0)
+Democ_age = subset(Democ, Democ$dem_age_r_x > 0)
+
+#Below used for question 4
+Repub_valid = subset(Repub, as.numeric(Repub$libcpre_self) > 3 & as.numeric(Repub$libcpo_self) > 5)
+Democ_valid = subset(Democ, as.numeric(Democ$libcpre_self) > 3 & as.numeric(Democ$libcpo_self) > 5)
+Repub_only = subset(S, S$pid_x == "6. Not very strong Republican" | S$pid_x == "7. Strong Republican")
+Democ_only = subset(S, S$pid_x == "1. Strong Democrat" | S$pid_x == "2. Not very strong Democract")
+Repub_only_valid = subset(Repub_only, as.numeric(Repub_only$libcpre_self) > 3 & as.numeric(Repub_only$libcpo_self) > 5)
+Democ_only_valid = subset(Democ_only, as.numeric(Democ_only$libcpre_self) > 3 & as.numeric(Democ_only$libcpo_self) > 5)
+
+#Below used for question 5
+Repub_Mod = subset(Repub, as.numeric(Repub$libcpre_self) == 7)
+Repub_VCon = subset(Repub, as.numeric(Repub$libcpre_self) == 10)
+Democ_VLib = subset(Democ, as.numeric(Democ$libcpre_self) == 4)
+Democ_Mod = subset(Democ, as.numeric(Democ$libcpre_self) == 7)
+VLib = subset(S, as.numeric(S$libcpre_self) == 4)
+VCon = subset(S, as.numeric(S$libcpre_self) == 10)
+```
+
+     1. Did voters become more liberal or more conservative during the 2012 election?
+For this question, I will be using a dependent two sided t-test. We are using a dependent test because the polls are of same people over a period of time and not two independent sample draws. One important thing to note is that the variables that we are looking at in this question are very similar to a likert scale. The variables are in question are ordinal; for these, both a t-test and a Wilcox-Signed Ranked Test might both be appropriate. One major factor in which is more appropriate is seeing if the difference between adjacent categories on the likert scale are approximately equivalent on all points of the scale. I believe that this is a reasonable inference looking at the scale used; every adjacent category seems similar in distance at all points of the scale. The question could be rephrased "On a scale of 1-7, where 1 is the most liberal, 4 is moderate and 7 is the most conversative, where would you place yourself?" Since this question could be rephrased in a manner that is metric, a t-test feels appropriate. A Wilcox-Signed Ranked Test would be more appropriate for a test if this could not be done. Opting for a Wilcox-Signed Ranked Test loses statistical power by removing the metric data which could be useful. I will run both tests for comparison, but I believe the t-test is appropriate.
+
+The main assumption needed for the dependent two sided t-test is normality of the difference between the scores. We can see from the histogram below, there is one notable way that the difference is not normal. The peak is too high; one reason is that the difference is a discrete variable and most respondents did not move in either direction. As such, too many data points are contained within the peak (if this was not continuous, many of points would likely be spread out between -0.5 and 0.5, making the data more normal). However, the t-test is already robust against deviations from normality. Given our large sample size sample, the Central Limit Theorem would determine that the data is close enough to normal to fulfill this assumption.
+
+The null hypothesis is that voters became neither more liberal or conservative during the 2012 election. The alternate hypothesis is that voters became either more liberal or more conservative.
+
+```{r, fig.height = 3.75}
+hist(as.numeric(valid_data$libcpre_self)-3, main = "PreElection Self Identification on Liberal-Conservative Scale", breaks = c(1:8-0.5), xlab = "Self ID on Scale")
+hist(as.numeric(valid_data$libcpo_self)-5, main = "PostElection Self Identification on Liberal-Conservative Scale", breaks = c(1:8-0.5), xlab = "Self ID on Scale")
+summary(as.numeric(valid_data$libcpre_self))-3
+summary(as.numeric(valid_data$libcpo_self))-5
+hist(((as.numeric(valid_data$libcpre_self))-3) - (as.numeric(valid_data$libcpo_self)-5), main = "Difference in Self-Identification in Pre & Post Election Surveys", xlab = "Difference in Self-Identification")
+qqnorm(((as.numeric(valid_data$libcpre_self))-3) - (as.numeric(valid_data$libcpo_self)-5), main = "Normality Check on Self-Identification Differences")
+t.test(as.numeric(valid_data$libcpo_self)-5, as.numeric(valid_data$libcpre_self)-3, paired = T)
+
+wilcox.test(as.numeric(valid_data$libcpre_self)-3, as.numeric(valid_data$libcpo_self)-5, correct = F)
+```
+
+Based on the t-test, the probability that we would get data this extreme if the there was no change in respondent answers (meaning that voters did not become more liberal or more conservative) is 0.166. While this isn't likely, it's not significant enough to reject our null hypothesis. This makes sense given that the difference in the mean of the two time series means was almost negligible. Since there is no statistical signficance, there is no practical significance.
+
+In comparison, the Wilcox Ranked Sum Test had a p-value of 0.4, which is even further from statistically significant. As we can see, in switching to a Wilcox Ranked Sum Test we lose power (hence the p-value of 0.4 whereas the t-test has a value of 0.166).
+
+2. Were Republican voters (examine variable pid\_x) older or younger (variable dem\_age\_r\_x), on the average, than Democratic voters in 2012?
+
+For this question, we will use a student's independent two sample t-test. This test comes with two assumptions: the data is relatively normal and the two data sets have relatively similar variance. Looking at the histograms for Democrats and Republicans, the data is not perfectly normal, but it does approach normality. Since both data sets have well over 30 data points, by the Central Limit Theorem, we can determine that these are close enough to normal for a t-test to be appropriate (despite the fact that the variables we are looking at are discrete, not continuous). The standard deviations of both data sets are very similar; as such, the variances will be very close as well. This fulfills the variance condition considering that Levene's Test gives us a P value of 0.65, which means that we can not reject the null hypothesis that the variances are equal (if the variances were not roughly equal, then we would use a Welch's t-test). Both key assumptions for this test are met. Please note that some data apepars to be missing (ages that are listed at -2); these will be removed from testing.
+
+The null hypothesis is that the mean age of both groups is the same. The alternate hypothesis is that they are not the same. For this, Republicans are categorized as those who answered "Independent-Republican", "Not very strong Republican", "Strong Republican" while Democrats are those who answered "Independent-Democrat", Not very strong Democrat" or "Strong Democrat." Please note that I would not typically consider the Independent Republicans or Democrats since these categories have are especially vague- these people could be third party, centrist, or on the heavy liberal or conservative wings. However, per instructions, these categories are being included.
+
+```{r, fig.height = 3.75}
+summary(Repub_age$dem_age_r_x)
+summary(Democ_age$dem_age_r_x)
+sd(Repub_age$dem_age_r_x)
+sd(Democ_age$dem_age_r_x)
+hist(Repub$dem_age_r_x, breaks = 20, main = "Republican Age", xlab = "Age")
+hist(Democ_age$dem_age_r_x, breaks = 20, main = "Democratic Age", xlab = "Age")
+
+levene_set <- c(Repub_age$dem_age_r_x, Democ_age$dem_age_r_x)
+levene_group <- as.factor(c(rep(1, length(Repub_age$dem_age_r_x)), rep(2, length(Democ_age$dem_age_r_x))))
+leveneTest(levene_set, levene_group)
+
+t.test(Repub_age$dem_age_r_x, Democ_age$dem_age_r_x, paired = F, var.equal = TRUE)
+cohen.d(Repub_age$dem_age_r_x, Democ_age$dem_age_r_x)
+```
+
+   We can reject the null hypothesis that the two groups have equal mean ages since the p-value is significantly lower than 0.05 (or even a more stringent choice of 0.01). Despite the statistical significance, this number does not have a practical difference. The means of the Republicans and Democrats are only approximately 1 year apart, but the standard deviation of both groups is about 16-17. These means that both groups have heavy overlap, and the difference in means- while statistically significant- is not practically significant.Cohen d's analysis confirms that the the difference in means is negligible.
+   
+3. Were Republican voters older than 51, on the average in 2012?
+
+Since we only want to know if Republicans are older than 51 on average, we only need a one tailed t test here. While a two tailed test is normally recommended, but given that the question is specifically interested in whether Republican voters are older than 51, it's unnecessary to check the lower tail; since we have already worked with this data before and we know the mean is our sample is greater than 51, which reinforces that we only need a one-tailed test.The assumption for this t test is normality of data. As we saw in the histogram in the previous question, the distribution of Republican ages does approach normality. Given that the data set contains 1,981 samples, this is more than sufficient to use a t-test based on the Central Limit Theorem.
+
+The null hypothesis is that Republicans voters average age is 51. The alternate hypothesis is that Republican voters average age is greater than 51.
+
+```{r}
+t.test(Repub_age$dem_age_r_x, mu = 51, alternative = "greater")
+```
+
+   We fail to reject the null hypothesis in this case since our p-value of 0.19 is above the threshold to reject. As we know from question 2, the mean age of Republicans in this sample was incredibly close to 51, so it would have been surprising if we could have rejected this specific null hypothesis. Since there is no statistical significance, there is also no practical significance.
+   
+   
+  4. Were Republican voters more likely to shift their political preferences right or left (more conservative or more liberal), compared to Democratic voters during the 2012 election?
+
+Since we are unsure of the direction, this test will have two tails. Like in question 1, I will use an independent t-test that compares the differences in the answers of Democrats and Republicans (as such, it's effectively an independent t-test on the differences between two sets of panel data). The same logic applies as to why we would use this test as opposed to a Wilcox-Ranked Sum Test; the numbers on the ordinal scale do have some sort of meaning and disregarding the numbers would be lessening statistical power. Unlike question 1, I will use a Welch's t-test. This is because the data does not fit one of the assumptions for student's t-test: the similarity of variances. When Levene's Test is run we are able to reject the null hypothesis that the variances are equiavelent.
+
+The remaining assumption- normality of data- is sufficiently met. While we know that the differences in scores does have some differences from a typical normal curve, the size of the data sets is sufficient to assume normality based on the central limit theorem.
+
+The null hypothesis is that Republican voters were not more likely to shift their political preferences compared to Democratic voters. The alternative is that the Republican voters did have a shift in either direction compared to Democratic voters.
+
+```{r, fig.height = 3.75}
+Repub_valid$difference = (as.numeric(Repub_valid$libcpo_self)-5) - (as.numeric(Repub_valid$libcpre_self)-3)
+Democ_valid$difference = (as.numeric(Democ_valid$libcpo_self)-5) - (as.numeric(Democ_valid$libcpre_self)-3)
+hist(Repub_valid$difference, main = "Shifts along Identification of Republicans", breaks = c(-7:7 - 0.5), xlab = "ID Difference")
+hist(Democ_valid$difference, main = "Shifts along Identification of Democrats", breaks = c(-7:7 - 0.5), xlab = "ID Difference")
+
+levene_set <- c(Repub_valid$difference, Democ_valid$difference)
+levene_group <- as.factor(c(rep(1, length(Repub_valid$difference)), rep(2, length(Democ_valid$difference))))
+leveneTest(levene_set, levene_group)
+
+sd(Repub_valid$difference)
+sd(Democ_valid$difference)
+
+t.test(Democ_valid$difference, Repub_valid$difference)
+cohen.d(Democ_valid$difference, Repub_valid$difference)
+```
+
+Based on the p-value of 0.02, we can reject the null hypothesis. As such, there was a statistically significant difference in the change in movements of Democrats compared to Republicans. Based on the mean movements, Democrats on average went slightly more liberal and Republicans became slightly more conservative, so Republicans were more likely to shift their preferences to the right compared to Democrats. However, there was not a practical significance; regardless of party, most voters did not change their preferences; Cohen's d shows that the difference was negligible.
+
+That said, I would like to look at the data ignoring Independent-Democrats and Independent-Republicans; as I noted earlier, voters in these categories may not truly have party affliation and may potentially act differently from true party members. I was curious to see if just looking at the data without these voters would produce a very different result.
+
+```{r}
+Repub_only_valid$difference = (as.numeric(Repub_only_valid$libcpo_self)-5) - (as.numeric(Repub_only_valid$libcpre_self)-3)
+Democ_only_valid$difference = (as.numeric(Democ_only_valid$libcpo_self)-5) - (as.numeric(Democ_only_valid$libcpre_self)-3)
+t.test(Democ_only_valid$difference, Repub_only_valid$difference)
+```
+
+With the two categories removed, the p-value is much higher. In this scenario, we can not reject the null hypothesis that the true difference is equal to 0. Also of note, Republicans in this specific set actually shifted slightly to the left on the scale whereas in the larger data set including Independent-Republicans, they shifted slightly to the right. It's interesting to note then that the stastical significance found with the Independents-Leaners included may solely be due to Independents-Leaners. Without more information on party identification, we can not really dig in deeper but it is still interesting to note this discrepency.
+
+  5. Do voters become more conservative as they get older?
+
+There's a common saying that says something to effect that if you aren't liberal when you are young, you have no heart and if aren't a conservative when you are older, you have no head. While we've previously looked at age and party identification, for the final question I wanted to explore whether the logic behind the common saying was evident in the data set. Or simply, looking at both holding party identification constant and ignoring party identification, do voters get more conservative as they age?
+
+For simplicity's sake, the only variable I will be holding constant is party idenfitication (when I do hold anything constant). While other profile variables like income, marital status, education status...etc likely are important how someone formulates their political identity, the level of complexity combined with the nebulous of some of the variables (especially household income, which on a fundemental level is likely intended to measure affluence) makes it impractical to consider all these at once
+
+In order to keep to keep this brief, I will be separately comparing the ages of Democrats and Republicans who identified as moderate to the furthest applicable fringe (very liberal for Democrats, very conservative for Republicans), as well as the difference between very liberal and very conservative voters ignoring party identification. Based on what I am trying to analyze, I will be using a 1-sided test since I want to specifically know if identification on the liberal to conservative scale increases with age.
+
+For the Republican test I will be using Welch's t-test since the Levene's Test is siginificant enough to tell us that the variances are not equal. For the other two tests, I will be using the student's t test since Levene's Test result is not significant enough to reject the null hypotheses of even variances. All the sample sizes are large enough to meet the assumption of normality under the Central Limit Theorem.
+
+The null hypothesis on all three tests is that the means of the ages of the two groups are equal. The alternative hypothesis is that the more conservative self-identification group has higher mean ages compared to the more liberal groups.
+
+```{r, include = F}
+levene_set_Rep <- c(Repub_Mod$dem_age_r_x, Repub_VCon$dem_age_r_x)
+levene_group_Rep <- as.factor(c(rep(1, length(Repub_Mod$dem_age_r_x)), rep(2, length(Repub_VCon$dem_age_r_x))))
+
+levene_set_Dem <- c(Democ_VLib$dem_age_r_x, Democ_Mod$dem_age_r_x)
+levene_group_Dem <- as.factor(c(rep(1, length(Democ_VLib$dem_age_r_x)), rep(2, length(Democ_Mod$dem_age_r_x))))
+
+levene_set_All <- c(VLib$dem_age_r_x, VCon$dem_age_r_x)
+levene_group_All <- as.factor(c(rep(1, length(VLib$dem_age_r_x)), rep(2, length(VCon$dem_age_r_x))))
+```
+```{r}
+#Levene's Test on Republican Dataset Test
+leveneTest(levene_set_Rep, levene_group_Rep)
+
+#Levene's Test on Democratic Dataset Test
+leveneTest(levene_set_Dem, levene_group_Dem)
+
+#Levene's Test on Complete Dataset Test
+leveneTest(levene_set_All, levene_group_All)
+
+#T-Test on Republican Dataset
+t.test(Repub_Mod$dem_age_r_x, Repub_VCon$dem_age_r_x, alternative = "less", paired = F)
+cohen.d(Repub_Mod$dem_age_r_x, Repub_VCon$dem_age_r_x, alternative = "less")
+
+#T-Test on Democratic Dataset
+t.test(Democ_VLib$dem_age_r_x, Democ_Mod$dem_age_r_x, alternative = "less", paired = F, var.equal = TRUE)
+cohen.d(Democ_VLib$dem_age_r_x, Democ_Mod$dem_age_r_x, alternative = "less")
+
+#T-Test on Complete Dataset
+t.test(VLib$dem_age_r_x, VCon$dem_age_r_x, alternative = "less", paired = F, var.equal = TRUE)
+cohen.d(VLib$dem_age_r_x, VCon$dem_age_r_x, alternative = "less")
+```
+
+Interestingly enough, the t-tests in all 3 datasets showed statistical significance with p-values below the 0.05 threshold. However, once again, there is not a lot of practical significance. The Democratic datasets only had a mean difference of a little less than 3 and a very small cohen's d rating that would be considered negligible. The Republican and general datasets had mean differences closer to 5, and cohen d's results that at least were small. Those two data sets likely did have a small practical difference, but not anything close to what the anecdote would imply.
+
+
+
+
+###In conclusion,
+  
+After looking at these five questions, the general takeaway is that there were no true major statistical differences in anything that was analyzed. Only about half the tests reached statistical significance, and few of those that did reach showed practical significance. For all we hear of things like changing age demographics should favor Democrats more in the future, this study showed that the expected future effects may not be as potent as some are expecting. While there are a few differences in age in terms of party or liberal-conservative identification, they are not large enough to have widespread effects on future elections based on inferences from this dataset alone. This is an important takeaway for policy makers who try to appeal to specific demographics: as both parties are similar to age demographics at least, completely ignoring one age bracket might mean that the opposing party could potentially court them.

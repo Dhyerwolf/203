@@ -1,0 +1,74 @@
+---
+title: "Reilly_Adam_HW4"
+author: "Adam Reilly"
+date: "September 28, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS/Lab_2")
+getwd
+```
+
+1. Best Game in the Casino
+You flip a fair coin 3 times, and get a different amount of money depending on how many heads you get. For 0 heads, you get $0. For 1 head, you get $2. For 2 heads, you get $4. Your expected winnings from the game are $6.
+
+(a) How much do you get paid if the coin comes up heads 3 times?
+
+P(0 Heads) = 0.5 * 0.5 * 0.5 = 0.125
+P(1 Head) = 3(0.5 * 0.5 * 0.5) = 0.375
+P(2 Heads) = 3(0.5 * 0.5 * 0.5) = 0.375
+P(3 Heads) = 0.5 * 0.5 * 0.5 = 0.125
+E(h(X)) = 6 = P(# Heads) * Payout(#Heads) for Headcount between 0 and 3
+6 = 0.125(0) + 0.375(2) + 0.375(4) + 0.125(x)
+6 = 0.75 + 1.5 + 0.125 (x)
+3.75 = 0.125 (x)
+h(x = 3) = $30
+
+(b) Write down a complete expression for the cumulative probability function for your winnings from the game.
+X <= 0: 12.5%
+ X <= 2: 50%
+X <= 4: 87.5%
+X <= 30: 100%
+
+2. Processing Pasta
+(a)	Write down a complete expression for the cumulative probability function of L.
+
+F(X) =  0            x <= 0
+        = (x^2)/4   0 < x <= 2
+        = 1            x > 2
+
+(b) What is the expected length of the pasta, E(L)?
+E(L) = x*f(x)dx from 0 to 2= x*(x/2)dx = (x^2)/2 * dx = x^3/6 = 8/6 = 1.33
+
+3. The Warranty is Worth It
+(a) Given that the server lasts 6 months without failing, what is the conditional probability that it will last another 3 months?
+P(lasts 9 months & lasts 6 months|lasts 6 months) = 0.25/0.5 = 0.5
+
+(b) Write down an expression for the cumulative probability function of the payout from the contract. That is, what is F(x), the probability that X is less than x? (Hint: make sure
+that F(0) = 0, F($100) = 1).
+
+First, since the question didn't specify, I am assuming that the payout is by day (so based on the day the server failed), since there has to be some determination of time of failure. Since t is measured in years, I would create a new variable d, which is t*365.
+
+f(d) = 1/365 for d between 0 and 365
+F(D)= d/365 for d between 0 and 365
+x = 100(1-(d/365))^2
+The probability of any one X is 1/365, but using that for the probability doesn't lead to a cumulative probability that functions (if would if the graph of the f(x) was linear)
+
+Pass
+This feels too complex with more information. We don't have the f(x), which is messy as x is no longer a uniform variable (every possible X has an equal chance, but the function describing them is no longer linear, so the possible X values start spacing differently). Since you need f(x) to get F(X), and neither are really described, I'm not really sure how to even go about answering this.
+
+(c) Compute the expected payout from the contract, E(X).
+Without f(x) it's not possible to calculate the expected value. Pass again.
+
+4. The Baseline for Measuring Deviations
+ (a) Compute the value of t that minimizes E(Y ). (Hint: Your answer should take less than
+5 characters to write)
+
+E(X)
+
+(If it is discrete. If it is continuous, it is half way between the lowest and highest possible value of X. This is because when we calculated the expected value of a continuous random variable, we plug in the lowest and highest possible values; if they are equidistant from t, that will make E(Y) equal to 0).
+
+(b) What is the value of E(Y) for this choice of t?
+Indeterminate. If we knew more about X (is it continuous or discrete? Is it uniform? What do the tails look like?), we might have a better idea.

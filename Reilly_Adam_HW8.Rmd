@@ -1,0 +1,72 @@
+---
+author: "Adam Reilly"
+title: "Reilly_Adam_HW8"
+subtitle: "w203: Statistics for Data Science"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+```
+
+The file GPA1.RData contains data from a 1994 survey of MSU students.  The survey was conducted by Christopher Lemmon, a former MSU undergraduate, and provided by Wooldridge.
+
+First, I'm just going to do a little data examination
+
+```{r}
+load("GPA1.RData")
+mean(data$skipped)
+sd(data$skipped)
+hist(data$skipped, breaks = c(0:6)-0.5)
+```
+
+The skipped variable represents the average number of lectures each respondent skips per week.  You are interested in testing whether MSU students skip over 1 lecture per week on the average.
+
+a. Examine the skipped variable and argue whether or not a t-test is valid for this scenario.
+
+I believe that a t-test would be a valid test for this scenario, assuming the sample population is independent and identically distributed. While the distribution is clearly not normal, there are sufficient number of random draws to assume that a t-test would be applicable by the standard of the central limit theorem. Additionally, the t distibution is robust to deviations from normality, so the fact that the distribution is non-normal is not a large issue.Since we don't know the population standard deviation, a t-test would be the better option compared to the Z-test.
+
+There is one cavaet. While we are told nothing about the sampling methodology in this question, in the next it mentions selecting students via dormitory rooms. If this is also true for this question, then a t-test would no longer be valid because the samples are not identically distributed. Unless every student is required to live in a dorm, then students living off campus would have no chance of being selected, and this is important because there is a strong reason that they would skip lectures more frequently because of the extra travel involved.
+ 
+b. How would your answer to part a change if Mr. Lemmon selected dormitory rooms at random, then interviewed all occupants in the rooms he selected?
+
+It the samples were selected in this manner, the sampling method is no longer independent. It seems very possible students with a roommate who skips many lectures may have a tendency to skip more lectures him or herself. In effect, there is a clustering issue with this selection methodology. In light of this information, a t-test would no longer be appropriate.
+
+c. Provide an argument for why you should choose a 2-tailed test in this instance, even if you are hoping to demonstrate that MSU students skip more than 1 lecture per week.
+
+A 1-tailed t-test is ideal when the data can only move in one direction. However, since our null hypothesis is 1, the data can go in either direction. A 2-tailed t-test is therefore a more thorough test that can tell us more about the sample than a 1-tailed t test can.
+
+d. Conduct the t-test using the t.test function and interpret every component of the results.
+```{r}
+t.test(data$skipped, mu= 1)
+```
+
+The mean of the sample is 1.076, which is relatively close to the null hypothesis of 1. There were 141 samples in the dataset since there was 140 degrees of freedom.The p-value is .4072, this means that if the null hypothesis is true, there is a 40.72% of finding data this extreme when you draw a random sample. The t value of 0.83 measures this in another way; it is a representation of variation relative to the standard error and is used to calculate p values (A tvalue of 0.83 is within the range where the null hypothesis can not be discarded). A t value of 0 would mean that the data perfectly matched the null hypothesis.
+
+The 95% confidence interval is {0.895, 1.257}. If we took a range of samples, over the long run, 95% of the 95% Confidence Intervals would have the population mean contained within them.
+
+e. Show how you would compute the t-statistic and p-value manually (without using t.test), using the pt function in R.
+The t value is equiavelent to the the mean of the data set minus the null hypothesis divided by the standard deviation of the data set divided by the square root of the sample size.
+
+```{r}
+t.value = (mean(data$skipped) - 1) / (sd(data$skipped) / sqrt(141))
+t.value
+```
+
+For the p value
+```{r}
+2*pt(t.value, 140, lower = F)
+```
+
+I multiplied by two because pt otherwise only measures 1 tail and we are doing a 2 tailed test.
+
+f. Construct a 99% confidence interval for the mean number classes skipped by MSU students in a week.
+```{r}
+t.test(data$skipped, mu= 1, conf.level=0.99)
+```
+
+The 99% confidence interval is {0.837, 1.316}
+
+g. Can you say that there is a 99% chance the population mean falls inside your confidence interval?
+No. There is either a 0% or 100% chance the population mean falls within the confidence interval. What it means is that if we keeping taking random samples, over the long run, the population mean will fall within 99% of the condifence interval ranges.

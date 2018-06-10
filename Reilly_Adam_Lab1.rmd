@@ -1,0 +1,322 @@
+---
+title: "Lab1"
+author: "Adam Reilly"
+date: "September 17, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+library(car)
+setwd ("C:/Users/PC/Desktop/Statistics for DS/Lab_2")
+getwd
+
+knitr::opts_chunk$set(echo = TRUE)
+load('ceo_w203.RData')
+str(CEO)
+```
+
+The task at hand is to take a set of data on CEO salary and various facts about the CEOs and the companies they work for to see if there were any links between salary and the other variables (especially variables that measured performance). While there was a lot of data in the set, I want to start off by noting what the data is missing and why this might be important. The primary aspect that the data is missing is performance over time. A panel covering several years would have been an ideal data metric to get a more accurate picture.
+
+When looking at a single year of data, you can only analyze company performance relative to other companies when the more relevant comparison might be comparing a company to it's own past performances. Companies may be undergoing strategic changes that might make short term numbers look worse as the company reorganizes, or they may be bouncing back from previous bad management or a bad event (in which case, a company may be happy with a negative profit if they are recovering from years of having far worse profits). It would also be useful to analyze how CEO compensation has changed in comparison to changes in profit levels or market values over time. A CEO who was adept at managing such a reorganization might be worth a high premium to certain companies. Unfortunately, as only a single year snapsnot is present, this potential metric is untested.
+
+I also want to note that the salary variable itself is not fully defined. Salary and compensation are not exactly the same; generally, any performance bonuses are not included in salary. If some of these numbers do contain performance bonuses, then we are not truly measuring salary. Of course, analyzing comprehensive CEO compensation is likely more critical than just analyzing salary since performance bonuses generally make up a significant amount of how much CEO are paid. Since we do not know the collection methodology, it's impossible to analyze this any further but it's still important to keep it in mind.
+
+Another aspect that we do not know that could be of importance is the structure of the company. Whether a company is publicly traded, has a board of directors, or is family owned could all have large implications on CEO salary. While we can't analyze this data, it is important to note that there are variables out there that could have a large impact on CEO salary that are not included in the study. I will be making attempts to use the given data to determine if it is likely that a row of data might have some atypical feature that makes it ill-suited for comparison to the rest of the data.
+
+
+#INITIAL DATA SETUP
+
+The data set contains the following variables: CEO salary, CEO age, CEO tenure at the company,
+CEO tenure as CEO, whether the CEO went to college, whether the CEO went to grad school, and the
+market values and profit levels of the company. Before looking at potential correlations between CEO salary and the other variables, I want to explore the variables first (including whether there are discrepencies in the variables that would make me remove datapoints from my analysis).
+
+
+\newpage
+
+##SALARY
+```{r pressure, echo=FALSE}
+summary(CEO$salary)
+hist(CEO$salary)
+CEO$logsal = log(CEO$salary *1000, base = 10)
+```
+###Standard Deviation
+```{r, echo=FALSE}
+sd(CEO$salary)
+```
+CEO Salary for the most part is clustered to the left side. The majority of points fall in the range below $1 million. There is one point that is that is a massive outlier (it's almost double the next highest salary, which is already an outlier). This point will be removed from the final data set; while some metrics are sensible (for example, the profit to market value ratio is in line with the standard range), the level of compensation is out of balance with many other observable metrics. CEOS running companies with significantly larger market value and profits level (some well over 10x greater) are paid half as much. This implies that there is likely some alternative reason as to why this CEO is being paid so much that we won't be able to explain in the data.
+
+There are a few other data points in the highest salary range that are also somewhat questionable.These are companies with market values below $1 billion whose ratio of CEO salary to market market are very high compared to other companies with similar CEO compensation. Although I'm not removing these points now, there are additional factors later on that I believe will justify these data rows being removed from analysis.
+
+```{r, echo=FALSE}
+CEO = subset(CEO, salary < 5000)
+```
+
+\newpage
+
+##COMPANY'S PROFIT LEVEL
+```{r, echo=FALSE}
+summary(CEO$profits)
+hist(CEO$profits, freq = TRUE, c(-500, -250, 0, 100, 200, 300, 400, 500, 1000, 1500, 2000, 2500, 3000))
+```
+Profit Level is an incredibly compact variable with a very large range. There are outliers at the top of the curve, but I think analysis will show that those outliers can be sufficiently explained and should be kept in the data pool. While the companies with the worst performing profit levels were not outliers, there is reason to believe that these companies should be removed from the study (please note that this analysis will be in the next section on market values).
+
+Profit level is one of only two variables we have that can measure a company's performance. Logically CEO salary and company performance should be positively linked to some degree, as a company that is performing well would have the means and the perhaps the justification of paying their CEO more money (I say perhaps because one theoretical that we can not examine is the link between actual CEO performance and profit level. Is a successful company successful because of what the CEO does or because of many other factors or employees or routines?)
+
+\newpage
+##COMPANY'S MARKET VALUES
+```{r, echo=FALSE}
+summary(CEO$mktval)
+hist(CEO$mktval, freq = TRUE, c(-10, 0, 100, 200, 300, 400, 500, 1000, 2000, 4000, 6000, 8000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000))
+```
+Company market value is the other variable we have that can directly measure a company's performance; however, since market value is built up over time, this variable is less dependent on a CEO's current performance than profit level. As noted in the summary, there are several companies that have negative market values. While this is possible, the rest of the data associated with these companies and the CEOs who run them looks highly errorneous (or if not errorneous, may be describing a company model that should not be compared to the other data points like a startup). Each of these companies not only has the exact same market value (-$1 million), they all have the same exact profit level (also -$1 million). Additionally, 4 of the 5 companies in this group have CEOs with the exact same company and ceo tenures (and the 5th company/CEO is very similar as well). This data all being identical strikes me as highly unlikely and indicates that these data points should be removed from the sample. In all summaries going forward, these points will not be included.
+
+```{r, echo=FALSE}
+CEO = subset(CEO, mktval > 0)
+CEO$logval = log(CEO$mktval * 1000000, base = 10)
+```
+
+Market value is heavily clustered on the left side. As such, later on we will be looking at some statistics on the log of market value compared to salary. This is also true of profits, but because some of the profits are negative, the log model will be less illuminating (and as noted later, profits and market value are very heavily correlated).
+
+As company profit level and market values are the only two variables we have to measure performance, I think that it makes sense to look at how they might be linked together. As such, I created a new variable valratio that measures the company's profit level divided by the market value.
+
+###VALRATIO ANALYSIS
+```{r, echo=FALSE}
+CEO$valratio = (CEO$profits / CEO$mktval)
+summary(CEO$valratio)
+hist(CEO$valratio, c(-0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.15, 0.2, 0.3))
+```
+This summary helps explains why I think the companies with the high outlier profit levels should be kept as data points: while their profit level was an outlier, they tended to also have very large market values. These companies all enjoyed healthy profit to value ratios, but most of them were in the between the median and the 3rd quartile break point (signifying that other companies had relative better years).
+
+However, this variable also illuminates why the companies who lost a lot of money in 1990 should not be included in this analysis. The range of the ratio ran from -15% to +15% except for 3 companies which had ratios from -33% to over -50% (over 4 standard deviations away from the mean). A company that loses that significant a portion of their net worth in one year is in some way likely not a comparable metric. As noted earlier, this could have been the result of a change in strategy or a large negative effect (like losing a lawsuit). Without knowing why these ratios are so large and negative, I do not believe they should be compared to the other numbers. In all instances going forward, this data points will not be considered. With these variables removed, the remaining data is for the most part very tightly clustered.
+
+```{r, echo=FALSE}
+CEO = subset(CEO, valratio > -0.33)
+```
+
+Just to note, upon removing these 3 data points from a data set of 179 examples, the standard deviation of this variable was cut in half, further reifying just how large these outliers were. I would also like to note that the company's profit level and market value have an extremely strong correlation above 0.9. This is to be logically expected, but it does have some implications for trying to determine any causation between salary and these variables. It also brings up some questions about how to best measure performance: logically, profit level does derive some influence from market value (a company generally is not going to make significant amounts of money unless it is already worth significant amounts of money).
+
+####Correlation of Market Value and Profit Level
+```{r, echo=FALSE}
+cor(CEO$mktval, CEO$profits)
+```
+
+I would also like to explore the ratio between market value and salary (note that I'm not comparing profit to salary as profit numbers can be transitional and may not reflect the CEO's value. However, since market value and profit have a high correlation, analyzing market value should still give us excellent insight).
+
+###SALRATIO Analysis
+```{r, echo=FALSE}
+CEO$salratio = (CEO$salary) / (CEO$mktval)
+summary(CEO$salratio)
+hist(CEO$salratio)
+sd(CEO$salratio)
+```
+
+Like the two variables it is derived from, salary ratio skews to the left. A good number of remaining data points are outliers. Several of these will be removed (reasoning will be in the setup for CEO tenure), as there are other abnormal aspects in the data.
+
+\newpage
+##CEO Age
+```{r, echo=FALSE}
+summary(CEO$age)
+hist(CEO$age)
+```
+Age appears to fit a relatively normal distribution. Age does contain 2 points outside of 3 standard deviations. One instance has a 21 year old who was worked at the company for 5 years, worked as CEO for 3, and has gone to grad school but not undergraduate. I'm removing this data point completely as it's either likely containing wrong information or the structure of this business makes comparisons to other businesses irrelevant (for example, it could be a family owned business). The other outlier strikes me as suspicious as well. While it's more plausible that an 86 year old would be CEO than a 21 year old, it becomes less plausible upon learning that the CEO did not work for the company prior to becoming CEO and became CEO at 73. However, in my opinion, it's not enough to justify removing the variable since none of the other data seems abnormal.
+
+Since age is a stand-in for experience, I would potentially expect a positive correlation between age and salary, but I would not expect it be signficant since it's not a very good stand-in.
+
+```{r, echo=FALSE}
+CEO = subset(CEO, age > 21)
+```
+
+\newpage
+Company Tenure
+```{r, echo=FALSE}
+summary(CEO$comten)
+hist(CEO$comten)
+```
+Company tenure is a variable that I believe will likely have less correlation with salary than some of the other variables. The distribution is relatively even ranging from 0 to 40. Company tenure does not necessarily speak to skill level (years in the industry does) and we do not know enough about the company's hiring practices (a company could reward long service, but a company could also pay a premium on hiring an excellent outside employee).
+
+\newpage
+##CEO Tenure
+```{r, echo=FALSE}
+summary(CEO$ceoten)
+hist(CEO$ceoten)
+```
+CEO Tenure is a variable that is heavily skewed; most of the data points are clustered between 0 and 10 years, and as we look at longer periods of tenure, there are fewer examples. I believe that CEO tenure would be more useful in a time series because that would allow us to track how CEO salaries have changed through their tenure. Is a CEO's salary going up due to good company performance, or it is going up with more CEO tenure regardless of performance? Without time series data, it's unfortunately impossible to say.
+
+One aspect that is missing that could potentially be important is the number of years the company existed. There are a number of data points where CEO Tenure and company tenure are identical. These data points may possibly describe CEOs that also founded the companies they run, in which case they may set their level of compensation without outside input. Of the ten remaining CEO with the highest salary to market value ratios, five of them have equal CEO and company tenures and have tenures over a decade. Without more data, I don't think there is a basis for removing all of these data points, but I think it is important to be aware this may be indicative of a business structure that may not apply universally. However, there are three data companies/CEOs where the data has shown enough odd behavior that they should be removed (One has an extremely low salary to market value ratio that is 25% of the next lowest ratio and the other has the highest salary to market ratio and the lowest profit to market value ratio, and the third then has the highest remaining salary and salary to market value ratio (both of which are outliers)).
+
+There is also some kind of error in that for 2 CEOs, CEO Tenure is longer than company tenure.This could be indicative of a misunderstanding in polling methodology, but it could also mean that there are errors in the data. While I don't think these errors are sufficient alone to exclude the data, both data points are outliers in the salary to market value ratio and also have profit to market values on the low end. I suspect that given the obvious tenure errors, there might be enough errors in the rest of the data to exclude these two points.
+
+```{r, echo=FALSE}
+CEO = subset(CEO, salratio > 0.01 & salratio < 3)
+CEO = subset(CEO, ceoten <= comten)
+```
+
+\newpage
+##College/Grad School
+
+College
+```{r, echo=FALSE}
+summary(CEO$college)
+```
+Grad School
+```{r, echo=FALSE}
+summary(CEO$grad)
+```
+The variable college will likely not be of much use since not only is it not particularly informative, but over 95% of the CEOs went to college. It would be fair to say that you will likely need to go to college if you want to become a CEO based on the given data. The grad school variable might be a little bit more useful as only 55% of the CEOs went to grad school, although I would not expect it to have too much of an impact (since it does not innately speak to CEO or company performance in any way). Looking at these stats might be more informative for other non-CEO positions, but theoretically all the CEOs were hired in the position because they had the skillset needed. How they developed such a skillset may not hold much relevance. Workers with less clout may be based more on metrics like college and grad school performance.
+
+Regarding the metrics of college, I noticed that there were several anomalies that did not go to undergrad, but did go to grad school. This strikes me as being some kind of data error; as such, when I look at any metrics based on points, I will be excluding these points. 
+
+This concludes the section on analysis of variables. Through looking at outliers or strange data points, approximately one dozen data points have been removed from our analysis set; most of these data points had abnormally high CEO salary to market values or unusually profit numbers. A number of data points were not removed, but may contain errors or may be describing a business model that is not fully comparable. However, without more data, I have left these in the data analysis. Having briefly discussed the potential relevancy of the non-salary variables, let us now move into an analysis of how salary and these other variables are correlated.
+
+\newpage
+
+##Profits versus Salary
+
+```{r, echo=FALSE}
+scatterplot(salary ~ profits, data = CEO)
+```
+
+###Correlation of Profit vs Salary
+```{r, echo=FALSE}
+cor(CEO$profits, CEO$salary)
+```
+
+After removing potential outliers, the relationship between CEO salary and company profit does show a relatively high level of correlation (almost reaching 0.6). This does imply that the variables do have a strong relationship (although as noted earlier, profit level is highly correlated with market value, so it possible that the correlation between salary and profit is a stand-in for the correlation between salary and market value- or vice versa, although find the first scenario more likely). The model isn't perfectly linear; on the left side of the graph (where profits is the x-axis), the points are very tightly clustered; then the trend line actually drops before increasing in a slope whose curves slowly diminishes.
+
+As noted previously, since profit has some negative values, this could be effecting the trendline's up and down pattern. Logically, a company that is losing money should be paying their CEO very little; as such, we know that those data points with negative profit levels can not really fit within the model. Instead, I would like to look more at company worth when considering trend lines.
+
+\newpage
+
+##Salary versus Company Worth
+
+```{r, echo=FALSE}
+scatterplot(salary ~ mktval, data = CEO)
+```
+
+###Salary versus Company Worth Correlation
+```{r, echo=FALSE}
+cor(CEO$mktval, CEO$salary)
+```
+
+The tight clustering of market value and salary makes it harder to draw comparisons, but the trend lines makes it clear that after a certain point on market value, the rate of increases in sal do not match the rate of increases in mktval. The trend line anomaly noted in the previous section is still present, although it's effect is much more muted. As the trend does not seem linear and because the data points are right skewed for the most part, I want to see if the comparing the log of each variable better serves for creating a linear model. 
+
+####Salary versus Company Worth Trend
+```{r, echo=FALSE}
+lm (formula = (CEO$salary) ~ (CEO$mktval))
+```
+
+Examining the trend line between these two variables shows that the slope is 0.04 (keep in mind that sal and mktval are not in the same numerical denomination; sal is in thousands and mktval is in millions). Considering the how different the numbers are, it does seem meaningful that their correlation is so high.
+
+\newpage
+
+##Log of Salary versus Log of Company Value
+
+```{r, echo=FALSE}
+scatterplot(logsal~logval, data = CEO)
+```
+
+###Correlation of Log of Salary versus log of Company Value
+```{r, echo=FALSE}
+cor(CEO$logval, CEO$logsal, use="pairwise.complete.obs")
+```
+
+When we comapre the log of each statistic, we find the the model trendlines are relatively linear (although their correlations are held down by a high amount of variance, the correlations are still high enough to worth analyzing). It's not unsurprising that taking the logs did not fully capture the correlation much better than the original model since the original model was not exponential (where logs are often the most effective). Since the non-logged scatterplot did seem to show a difference in trend when comparing low market value companies to high market value companies, I wanted to take a look at the data set split up. 
+
+###Analysis of lower market value companies versus CEO salary
+```{r, echo=FALSE}
+CEOlowmktval = subset(CEO, mktval < 5000)
+scatterplot(salary ~ mktval, data = CEOlowmktval)
+```
+
+####Correlation of lower market value companies to CEO salary
+```{r, echo=FALSE}
+cor(CEOlowmktval$mktval, CEOlowmktval$salary)
+```
+
+####Model Analysis of lower market value to CEO salary
+```{r, echo=FALSE}
+lm (formula = (CEOlowmktval$salary) ~ (CEOlowmktval$mktval))
+```
+
+It appears that even when the market value is cutting into two groups, the smaller group still displays evidence of the slowing curve as you travel to data points with higher salaries and market values. Once again, it appears that the data on the left side is still relatively scattered.
+
+Compared to the complete data set, the slope of the regression line is higher (as it expected since the curve slows in the original set) and has a lower intercept.
+
+###Analysis of higher market value companies versus CEO salary
+```{r, echo=FALSE}
+CEOhighmktval = subset(CEO, mktval > 5000)
+scatterplot(salary ~ mktval, data = CEOhighmktval)
+```
+
+####Correlation of higher market value companies to CEO salary
+```{r, echo=FALSE}
+cor(CEOhighmktval$mktval, CEOhighmktval$salary)
+```
+
+####Model Analysis of higher market value to CEO salary
+```{r, echo=FALSE}
+lm (formula = (CEOhighmktval$salary) ~ (CEOhighmktval$mktval))
+```
+
+Oddly enough, separating market value into two levels actually lowered the correlation metrics between both the low and the high and salary; this is likely due to the fact that there is so much variance in the remaining sample space that the relatively high value companies were actually providing some stability to the low value companies despite the fact that they were not on a fully linear model. The high market value curve almost looks relatively flat if you only look at the right side; seemingly around a market value of $10 billion, market value ceases to have much of an impact on CEO salary (the slope of the regression line is incredibly miniscule). I believe that the overall variance levels go to show that there is likely a lot of variables effecting CEO salary that can not be accurately gauged by the limited data set.
+
+\newpage
+
+##Salary versus the CeoTenure
+
+```{r, echo=FALSE}
+scatterplot(salary ~ ceoten, data = CEO)
+```
+
+###Correlation between CEOTenure and Salary
+```{r, echo=FALSE}
+cor(CEO$ceoten, CEO$salary)
+```
+
+Salary and Ceotenure do have a positive correlation, but a relatively weak one (0.14). This is as expected as CEO tenure is not a true performance metric; while you would expect that a CEO who has been a company for a long time would get a number of raises, a new CEO may have been in a better position in terms of salary negotiation. Also, this is a case where it could really matter if the salary portion did not reliably measure performance bonuses; many performance bonuses only fully vest over time. A CEO with a long tenure could get an effective pay bump due to good past company performance.
+
+\newpage
+
+##Salary versus the Company Tenure
+
+```{r, echo=FALSE}
+scatterplot(salary ~ comten, data = CEO)
+```
+
+###Correlation between Salary and Company Tenure
+
+```{r, echo=FALSE}
+cor(CEO$comten, CEO$salary)
+```
+
+Not only does salary have a very low correlation with company tenure, the correlation is not even positive (-0.003). There is no real link between these variables, which is as expected.
+
+\newpage
+
+##Salary versus Graduate School
+
+```{r, echo=FALSE}
+plot(~grad+salary, data = CEO)
+```
+
+###Correlation between Salary and Graduate School
+```{r, echo=FALSE}
+cor(CEO$grad, CEO$salary)
+```
+
+#####Correlation between Market Value and Graduate School
+```{r, echo=FALSE}
+cor(CEO$grad, CEO$mktval)
+```
+
+#####Correlation between Profit and Graduate School
+```{r, echo=FALSE}
+cor(CEO$grad, CEO$profits)
+```
+
+These variables have a low correlation (0.08), which makes sense. Just like the past 2 variables, graduate school attendance does not directly speak to real performance in any manner. Companies with CEOS with attended graduate school do tend to have slightly higher profits and market values, but the values are once again very low. There is no statistically significant link between grad school attendance and any of the other variables.
+
+\newpage
+#Conclusion
+In analyzing CEO pay, I found that the majority of the variables study have no direct correlation with salary. Whether a CEO attended graduate school, how long a CEO has held his or her current position or how long a CEO has been with a company hold little correlation with their salary. Both the company's market value and the company's yearly profit do have a moderately significant correlation (especially after all the outlying variables have been removed). That said, without additional data, I do not believe we have enough to start looking at potential causation models. Market value is hard to analyze because we don't have any information on how market value has increased over the CEO's tenure; similarly, we do not know if the profit levels the companies are different from the profit they reaped prior the CEO's hiring. While there is a definite correlation, the statistics used do not allow us to truly sufficiently analyze CEO or company person except in a vacuum. 

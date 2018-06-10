@@ -1,0 +1,173 @@
+---
+title: "Reilly_Adam_HW11"
+author: "Adam Reilly"
+date: "November 17, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd ("C:/Users/PC/Desktop/Statistics for DS")
+getwd
+library(psych)
+library(countrycode)
+library(car)
+```
+
+
+### Get familiar with the data
+You receive a data set from World Bank Development Indicators. 
+
+
+  - Load the data using `load` and see what is loaded by using `ls()`. You should see `Data` which is the data frame including data, and `Descriptions` which is a data frame that includes variable names. 
+```{r}
+load('Week11.Rdata')
+ls()
+Data = subset(Data, countrycode(Data$Country.Name,origin='country.name', destination='country.name') != 'NA')
+```
+  - Look at the variables, read their descriptions, and take a look at their histograms. Think about the transformations that you may need to use for these variables in the section below. 
+  
+# For the sake of space, I'm only including the histograms of variables I actually use in my models.
+```{r pressure, echo = FALSE, fig.height = 3.75}
+summary(Data)
+hist(Data$AG.LND.FRST.ZS)
+hist(Data$NY.GDP.PCAP.CD, breaks = 30)
+hist(log(Data$NY.GDP.PCAP.CD))
+hist(Data$NY.GDP.PETR.RT.ZS, breaks = 12)
+hist(Data$TX.VAL.AGRI.ZS.UN, breaks = 20)
+hist(log(Data$TX.VAL.AGRI.ZS.UN))
+```
+
+```{r, include = F}
+#dmatrix = data.matrix(Data)
+#cor(dmatrix, dmatrix, use = "complete.obs")
+```
+
+  - Run: `apply(!is.na(Data[,-(1:2)] ) , MARGIN= 2, mean )` and explain what it is showing.
+  
+```{r}
+apply(!is.na(Data[,-(1:2)] ) , MARGIN= 2, mean )
+```
+This calculates the percentage of valid data (data that is not NAN or NA) in each variable in Data and returns the results for all the variables.
+Apply- Applies a function (!is.na) to an array or dataframe (Data) and returning the result
+
+!is.na- Calculating % of NAs in Data variables
+
+The -1:2 is an index that cuts off the Country Name, Country Code and Forests
+
+Margin is a variable that determines how Apply iterates
+
+Mean Takes the NAs, convert to a binary and takes the mean
+
+  - Can you include both `NE.IMP.GNFS.CD` and `NE.EXP.GNFS.CD` in the same OLS model? Why?
+```{r}
+cor(Data$NE.IMP.GNFS.CD, Data$NE.EXP.GNFS.CD, use = "complete.obs")
+expimp_model = lm(Data$NE.IMP.GNFS.CD ~ Data$NE.EXP.GNFS.CD)
+expimp_model
+#abline(expimp_model)
+```
+
+It would not be appropriate to use both imports and exports in the same regression model. This is because using both would violate the 3rd part of the Gauss-Markov theorem: two variables in a model can't have perfect colinearity. Imports and exports have a correlation of approximately 98%; as such, they can't be used simaltaenously in this case.
+  
+  - Rename the variable named `AG.LND.FRST.ZS` to `forest.` This is going to be our dependent variable.
+
+```{r}
+names(Data)[names(Data) == "AG.LND.FRST.ZS"] <- "forest"
+```
+
+
+### Decribe a model for that predicts `forest`
+ - Write a model with two explanatory variables. 
+ 
+ For this first model, I am trying to guess which two variables could have the most correlation with land use, which are percentage of agricultural exports and percentage of GDP from fossil fuels (theoretically, you can't really have agricultural production or oil extraction in forested areas, although depending on what items are considered in agricultural products, the two categories could overlap). I have chosen to take the log of agriculture. One reason is to fit better within the assumption of the residuals being somewhat normally distributed. Without taking the log, this is not the case based the qq-plot. However, as you will see later, the qq plot with the log does at least look somewhat normal. I would do the same thing for Petroleum, but since some data there is equal to 0, the log can't be used.
+ 
+```{r}
+Data = subset(Data, (Data$forest != 'NaN' & Data$TX.VAL.AGRI.ZS.UN != 'NaN' & Data$NY.GDP.PETR.RT.ZS != 'NaN'))
+model = lm(Data$forest ~ log(Data$TX.VAL.AGRI.ZS.UN) + Data$NY.GDP.PETR.RT.ZS)
+model
+```
+
+    - Create a residuals versus fitted values plot and assess whether your coefficients are unbiased.
+     - How many observations are being used in your analysis? 
+     - Are the countries that are dropping out dropping out by random chance? If not, what would this do to our inference? 
+```{r}
+plot(model, which = 1)
+
+cor(log(Data$TX.VAL.AGRI.ZS.UN), Data$NY.GDP.PETR.RT.ZS, use = "complete.obs")
+model_counter = subset(Data, Data$forest != 'NaN' & Data$TX.VAL.AGRI.ZS.UN != 'NaN' & Data$NY.GDP.PETR.RT.ZS != 'NaN')
+print(nrow(model_counter))
+cor(model$fitted.values, model$residuals)
+cor(log(Data$TX.VAL.AGRI.ZS.UN), model$residuals, use = "complete.obs")
+cor(Data$TX.VAL.AGRI.ZS.UN, model$residuals, use = "complete.obs")
+cor(Data$NY.GDP.PETR.RT.ZS, model$residuals, use = "complete.obs")
+```
+```{r, fig.height=3.75}
+qqnorm(model$residuals)
+plot(model, which = 5)
+```
+
+There are 4 assumptions needed for unbiased variables.
+1. Linear Model- Already fulfilled 
+
+2. Random Sampling- Technically not fulfilled since some data drops off (and otherwise the data set wasn't a sample, it was a census of all countries. Of course, a census is technically better than a survey). While this isn't perfectly met, I think that for the most part, the concept holds true enough for this assumption to be true. 
+
+3. Multicollinearity- Fulfilled; the correlation between the two independent variables is -0.48, which is small enough for this condition to be fulfilled.While this is not miniscule, it's not large enough to breach the assumption. I would like to note that if Agriculture was not transformed by the log function, the correlation would be -0.15. This shows how there are many trade-offs in how to craft variables. 
+
+4. Zero-Conditional Mean- Based on the residual vs fitted plot, this assumption isn't perfect. On the left side of the graph, the residual trend line is notably below 0. However, there are very few data points in this section, so it could just be noise. Many of the fitted values fall in a very tight area where the expectation is near 0. The correlation between the fitted values and the residuals is very, very low (near 0)
+
+On the whole, this at least seems unbiased enough to use.
+
+This model has 165 data points. The countries that are dropping out are not by random chance, but rather because there was data missing. Many of the countries with data missing do have something in common; they tend to be smaller countries (often island nations) or very poor countries. These countries removal does have an effect on our inference since most of the removals are coming from a specific subset of data points. However, there is a logical reason to believe that the small island nations might function differently than larger mainland countries in terms of economic structuring, so it's hard to say whether their removal might obscure or clarify any patterns.
+
+  - Now add a third variable.
+  - Show how you would use the regression anatomy formula to compute the coefficient on your third variable.  First, regress the third variable on your first two variables and extract the residuals.  Next, regress forest on the residuals from the first stage.
+```{r}
+Validmodel = subset(Data, (Data$forest != 'NaN' & Data$TX.VAL.AGRI.ZS.UN != 'NaN' & Data$NY.GDP.PETR.RT.ZS != 'NaN' & Data$NY.GDP.PCAP.CD != 'NaN'))
+model2 = lm(Validmodel$forest ~ log(Validmodel$TX.VAL.AGRI.ZS.UN) + Validmodel$NY.GDP.PETR.RT.ZS + log(Validmodel$NY.GDP.PCAP.CD))
+model2
+
+plot(model2, which = 1)
+cor(model2$fitted.values, model2$residuals)
+cor(log(Validmodel$TX.VAL.AGRI.ZS.UN), model2$residuals)
+cor(Validmodel$NY.GDP.PETR.RT.ZS, model2$residuals)
+cor(log(Validmodel$NY.GDP.PCAP.CD), model2$residuals)
+summary(model)$adj.r.square
+summary(model2)$adj.r.square
+```
+
+Using the regression anatomy formula to compute the coefficinent of the third variable
+```{r}  
+plot(log(Validmodel$TX.VAL.AGRI.ZS.UN) + Validmodel$NY.GDP.PETR.RT.ZS, log(Validmodel$NY.GDP.PCAP.CD), main = "Petroleum and Agriculture vs GDP Per Capita")
+fs = lm(log(Validmodel$NY.GDP.PCAP.CD) ~ log(Validmodel$TX.VAL.AGRI.ZS.UN) + Validmodel$NY.GDP.PETR.RT.ZS)
+fs
+abline(fs)
+
+ra = lm(Validmodel$forest ~ fs$resid)
+ra
+```
+fs$resid matches the coefficient on the third variable in the second model (2.208).
+
+Do you see an improvement? Explain how you can tell.
+
+There is a very slight improvement. The adjusted r square has increased slightly with the second model, meaning it does better explain the variation. Additionally, the residual vs fitted plot on model 2 potentially shows less bias since the trend line adheres more closely to 0 there. However, neither model was particularly effective given that both had r-squared values that are incredibly small.
+
+### Make up a country
+
+  - Make up a country named `Mediland` which has every indicator set at the median value observed in the data. 
+  - How much forest would this country have?
+    
+```{r}
+summary(Data$forest)
+summary(Data$TX.VAL.AGRI.ZS.UN)
+summary(Data$NY.GDP.PETR.RT.ZS)
+summary(Data$NY.GDP.PCAP.CD)
+Expected_forest = (12.1194 + 2.5601 * log(1.647) - .1844 * 0.00186 + 2.2078 * log(5774))
+Expected_forest
+```
+
+The expected amount of forest in Mediland would be 32.5%.
+### Take away
+
+  - What is the causal story, if any, that you can take away from the above analysis? Explain why.
+
+I would say that there is no casual story that can be taken from the analysis. The variables in our datasets are often taken in different types of measurements (some variables use the unscaled size of economies, some use percentages...etc) and none of the variables are causal to the amount of forest that covers a country. I would imagine that none of the variables would be particularly great at explaining the amount of variations in the data set.
